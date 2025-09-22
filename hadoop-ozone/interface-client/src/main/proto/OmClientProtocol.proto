@@ -156,6 +156,7 @@ enum Type {
   PutObjectTagging = 140;
   GetObjectTagging = 141;
   DeleteObjectTagging = 142;
+  GetS3StsToken = 143;
 }
 
 enum SafeMode {
@@ -304,6 +305,8 @@ message OMRequest {
   optional PutObjectTaggingRequest          putObjectTaggingRequest        = 141;
   optional DeleteObjectTaggingRequest       deleteObjectTaggingRequest     = 142;
   repeated SetSnapshotPropertyRequest       SetSnapshotPropertyRequests    = 143;
+
+  optional GetS3StsTokenRequest             getS3StsTokenRequest            = 144;
 }
 
 message OMResponse {
@@ -437,6 +440,8 @@ message OMResponse {
   optional GetObjectTaggingResponse          getObjectTaggingResponse      = 140;
   optional PutObjectTaggingResponse          putObjectTaggingResponse      = 141;
   optional DeleteObjectTaggingResponse       deleteObjectTaggingResponse   = 142;
+
+  optional GetS3StsTokenResponse             getS3StsTokenResponse          = 143;
 }
 
 enum Status {
@@ -1865,6 +1870,14 @@ message SetS3SecretRequest {
 message SetS3SecretResponse {
     optional string accessId = 1;
     optional string secretKey = 2;
+}
+
+message GetS3StsTokenRequest {
+    optional string accessId = 1;
+}
+
+message GetS3StsTokenResponse {
+    optional string accessId = 1;
 }
 
 message TenantState {

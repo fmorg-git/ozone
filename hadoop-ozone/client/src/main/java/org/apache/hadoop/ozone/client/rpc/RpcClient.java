@@ -851,6 +851,18 @@ public class RpcClient implements ClientProtocol {
    * {@inheritDoc}
    */
   @Override
+  public String getS3StsToken(String accessID)
+      throws IOException {
+    Preconditions.checkArgument(StringUtils.isNotBlank(accessID),
+        "accessID cannot be null or empty.");
+    System.out.println("RpcClient received getS3StsToken request.");
+    return ozoneManagerClient.getS3StsToken(accessID);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public void createTenant(String tenantId) throws IOException {
     createTenant(tenantId, TenantArgs.newBuilder()
         .setVolumeName(tenantId).build());

@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
  */
 @Path("/")
 @S3STSEnabled
+@S3AWSCredentialsEndpoint
 public class S3STSEndpoint extends S3STSEndpointBase {
 
   private static final Logger LOG = LoggerFactory.getLogger(S3STSEndpoint.class);
@@ -118,6 +119,8 @@ public class S3STSEndpoint extends S3STSEndpointBase {
   private Response handleSTSRequest(String action, String roleArn, String roleSessionName,
       Integer durationSeconds, String version) throws OS3Exception {
     try {
+      initialization();
+
       if (action == null) {
         return Response.status(Response.Status.BAD_REQUEST)
             .entity("Missing required parameter: " + STS_ACTION_PARAM)
@@ -202,7 +205,7 @@ public class S3STSEndpoint extends S3STSEndpointBase {
     // TODO: Create a new S3 credentials for this role session
     // TODO: Add validated ACLs for the new credentials
     // TODO: How do we handle expired credentials? We don't support renewal?
-
+    String dummyCredentials = getClient().getObjectStore().getS3StsToken(userNameFromRequest());
     // Generate AssumeRole response
     String responseXml = generateAssumeRoleResponse(roleArn, roleSessionName, duration);
 

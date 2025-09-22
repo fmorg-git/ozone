@@ -29,6 +29,9 @@ import org.apache.hadoop.ozone.audit.AuditLoggerType;
 import org.apache.hadoop.ozone.audit.AuditMessage;
 import org.apache.hadoop.ozone.audit.Auditor;
 import org.apache.hadoop.ozone.client.OzoneClient;
+import org.apache.hadoop.ozone.client.protocol.ClientProtocol;
+import org.apache.hadoop.ozone.om.protocol.S3Auth;
+import org.apache.hadoop.ozone.s3.signature.SignatureInfo;
 import org.apache.hadoop.ozone.s3.util.AuditUtils;
 
 /**
@@ -41,12 +44,26 @@ public class S3STSEndpointBase implements Auditor {
 
   @Inject
   private OzoneClient client;
+  @Inject
+  private SignatureInfo signatureInfo;
+
+  private S3Auth s3Auth;
 
   protected static final AuditLogger AUDIT =
       new AuditLogger(AuditLoggerType.S3GLOGGER);
 
+  public void initialization() {
+    s3Auth = new S3Auth(signatureInfo.getStringToSign(),
+        signatureInfo.getSignature(),
+        signatureInfo.getAwsAccessId(), signatureInfo.getAwsAccessId());
+    ClientProtocol clientProtocol =
+        getClient().getObjectStore().getClientProxy();
+    clientProtocol.setThreadLocalS3Auth(s3Auth);
+  }
+
+  // TODO:
   protected String userNameFromRequest() {
-    return context.getSecurityContext().getUserPrincipal().getName();
+    return s3Auth.getAccessID();
   }
 
   private AuditMessage.Builder auditMessageBaseBuilder(AuditAction op,

@@ -647,6 +647,17 @@ public interface OzoneManagerProtocol
   }
 
   /**
+   * Gets s3STSsecret for given s3secret user.
+   * @param accessId
+   * @return S3SecretValue
+   * @throws IOException
+   */
+  default String getS3StsToken(String accessId) throws IOException {
+    throw new UnsupportedOperationException("OzoneManager does not require " +
+        "this to be implemented, as write requests use a new approach.");
+  }
+
+  /**
    * Create a tenant.
    * @param omTenantArgs OmTenantArgs
    * @throws IOException
