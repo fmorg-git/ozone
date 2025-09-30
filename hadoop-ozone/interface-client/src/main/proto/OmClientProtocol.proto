@@ -309,7 +309,7 @@ message OMRequest {
   repeated SetSnapshotPropertyRequest       SetSnapshotPropertyRequests    = 143;
 
   optional GetS3TemporarySecretRequest      getS3TemporarySecretRequest     = 144;
-  optional UpdateGetS3TemporarySecretRequest updateGetS3TemporarySecretRequest  = 145;
+  optional UpdateGetS3TemporarySecretRequest updateGetS3TemporarySecretRequest  = 145; // Q: we might not need this because
   optional RevokeS3TemporarySecretRequest   revokeS3TemporarySecretRequest  = 146;
 }
 
@@ -1887,6 +1887,10 @@ message S3TemporarySecret {
 
 message GetS3TemporarySecretRequest {
     required string accessKeyId = 1;
+    required string roleArn = 2; // requested bucket/key ACLs
+    required string roleSessionName = 3;
+    optional uint64 durationSeconds = 4;
+    required string caller_kerberosID = 5; // to check if a caller has access to requested resources
 }
 
 message GetS3TemporarySecretResponse {

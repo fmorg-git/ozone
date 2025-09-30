@@ -39,6 +39,7 @@ import org.apache.hadoop.ozone.om.helpers.OmPrefixInfo;
 import org.apache.hadoop.ozone.om.helpers.OmVolumeArgs;
 import org.apache.hadoop.ozone.om.helpers.RepeatedOmKeyInfo;
 import org.apache.hadoop.ozone.om.helpers.S3SecretValue;
+import org.apache.hadoop.ozone.om.helpers.S3TemporarySecretValue;
 import org.apache.hadoop.ozone.om.helpers.SnapshotInfo;
 import org.apache.hadoop.ozone.om.service.SnapshotDeletingService;
 import org.apache.hadoop.ozone.security.OzoneTokenIdentifier;
@@ -53,9 +54,10 @@ import org.apache.ozone.compaction.log.CompactionLogEntry;
  * |------------------------------------------------------------------------|
  * |        Column Family |                 Mapping                         |
  * |------------------------------------------------------------------------|
- * |            userTable |             /user :- UserVolumeInfo             |
- * |          dTokenTable |      OzoneTokenID :- renew_time                 |
- * |        s3SecretTable | s3g_access_key_id :- s3Secret                   |
+ * |              userTable |             /user :- UserVolumeInfo           |
+ * |            dTokenTable |      OzoneTokenID :- renew_time               |
+ * |          s3SecretTable | s3g_access_key_id :- s3Secret                 |
+ * | s3TemporarySecretTable | s3g_access_key_id :- s3TemporarySecret        |
  * |------------------------------------------------------------------------|
  * }
  * </pre>
@@ -161,6 +163,12 @@ public final class OMDBDefinition extends DBDefinition.WithMap {
           StringCodec.get(),
           S3SecretValue.getCodec());
 
+  public static final String S3_TEMPORARY_SECRET_TABLE = "s3TemporarySecretTable";
+  /** s3TemporarySecretTable: s3g_access_key_id :- s3TemporarySecret. */
+  public static final DBColumnFamilyDefinition<String, S3TemporarySecretValue> S3_TEMPORARY_SECRET_TABLE_DEF
+      = new DBColumnFamilyDefinition<>(S3_TEMPORARY_SECRET_TABLE,
+          StringCodec.get(),
+          S3TemporarySecretValue.getCodec());
   //---------------------------------------------------------------------------
   // Volume, Bucket, Prefix and Transaction Tables:
   public static final String VOLUME_TABLE = "volumeTable";
@@ -332,6 +340,7 @@ public final class OMDBDefinition extends DBDefinition.WithMap {
           PREFIX_TABLE_DEF,
           PRINCIPAL_TO_ACCESS_IDS_TABLE_DEF,
           S3_SECRET_TABLE_DEF,
+          S3_TEMPORARY_SECRET_TABLE_DEF,
           SNAPSHOT_INFO_TABLE_DEF,
           SNAPSHOT_RENAMED_TABLE_DEF,
           COMPACTION_LOG_TABLE_DEF,

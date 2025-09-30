@@ -52,5 +52,5 @@ public interface S3SecretStore {
   /**
    * @return s3 batcher instance, null if batch operation doesn't support.
    */
-  S3Batcher batcher();
+  S3Batcher s3SecretBatcher();
 }

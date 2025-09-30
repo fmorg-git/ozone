@@ -52,5 +52,5 @@ public interface S3TemporarySecretStore {
   /**
    * @return s3 temporary batcher instance, null if batch operation isn't supported.
    */
-  S3TemporarySecretBatcher batcher();
+  S3TempSecretBatcher s3TemporarySecretBatcher();
 }

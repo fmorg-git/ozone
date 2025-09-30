@@ -103,6 +103,7 @@ import org.apache.hadoop.ozone.om.helpers.OpenKeySession;
 import org.apache.hadoop.ozone.om.helpers.OzoneFSUtils;
 import org.apache.hadoop.ozone.om.helpers.RepeatedOmKeyInfo;
 import org.apache.hadoop.ozone.om.helpers.S3SecretValue;
+import org.apache.hadoop.ozone.om.helpers.S3TemporarySecretValue;
 import org.apache.hadoop.ozone.om.helpers.SnapshotInfo;
 import org.apache.hadoop.ozone.om.helpers.WithMetadata;
 import org.apache.hadoop.ozone.om.lock.IOzoneManagerLock;
@@ -128,7 +129,7 @@ import org.slf4j.LoggerFactory;
  * Ozone metadata manager interface.
  */
 public class OmMetadataManagerImpl implements OMMetadataManager,
-    S3SecretStore {
+    S3SecretStore, S3TemporarySecretStore {
   private static final Logger LOG =
       LoggerFactory.getLogger(OmMetadataManagerImpl.class);
 
@@ -155,6 +156,7 @@ public class OmMetadataManagerImpl implements OMMetadataManager,
   private TypedTable<String, OmPrefixInfo> prefixTable;
   private TypedTable<String, TransactionInfo> transactionInfoTable;
   private TypedTable<String, String> metaTable;
+  private TypedTable<String, S3TemporarySecretValue> s3TemporarySecretTable;
 
   // Tables required for multi-tenancy
   private TypedTable<String, OmDBAccessIdInfo> tenantAccessIdTable;
@@ -182,6 +184,8 @@ public class OmMetadataManagerImpl implements OMMetadataManager,
   private SnapshotChainManager snapshotChainManager;
   private final OMPerformanceMetrics perfMetrics;
   private final S3Batcher s3Batcher = new S3SecretBatcher();
+  private final S3TempSecretBatcher s3TempSecretBatcher =
+      new S3TemporarySecretBatcher();
 
   /**
    * OmMetadataManagerImpl constructor.
@@ -458,6 +462,7 @@ public class OmMetadataManagerImpl implements OMMetadataManager,
     dTokenTable = initializer.get(OMDBDefinition.DELEGATION_TOKEN_TABLE_DEF);
     s3SecretTable = initializer.get(OMDBDefinition.S3_SECRET_TABLE_DEF);
     prefixTable = initializer.get(OMDBDefinition.PREFIX_TABLE_DEF);
+    s3TemporarySecretTable = initializer.get(OMDBDefinition.S3_TEMPORARY_SECRET_TABLE_DEF);
 
     transactionInfoTable = initializer.get(OMDBDefinition.TRANSACTION_INFO_TABLE_DEF);
 
@@ -1594,7 +1599,27 @@ public class OmMetadataManagerImpl implements OMMetadataManager,
   }
 
   @Override
-  public S3Batcher batcher() {
+  public void storeTemporarySecret(String accessId, S3TemporarySecretValue secret) throws IOException {
+    s3TemporarySecretTable.put(accessId, secret);
+  }
+
+  @Override
+  public S3TemporarySecretValue getTemporarySecret(String accessId) throws IOException {
+    return s3TemporarySecretTable.get(accessId);
+  }
+
+  @Override
+  public void revokeTemporarySecret(String accessKeyId) throws IOException {
+    s3TemporarySecretTable.delete(accessKeyId);
+  }
+
+  @Override
+  public S3TempSecretBatcher s3TemporarySecretBatcher() {
+    return s3TempSecretBatcher;
+  }
+
+  @Override
+  public S3Batcher s3SecretBatcher() {
     return s3Batcher;
   }
 
@@ -1830,6 +1855,26 @@ public class OmMetadataManagerImpl implements OMMetadataManager,
         throws IOException {
       if (batchOperator instanceof BatchOperation) {
         s3SecretTable.deleteWithBatch((BatchOperation) batchOperator, id);
+      }
+    }
+  }
+
+  private final class S3TemporarySecretBatcher implements S3TempSecretBatcher {
+    @Override
+    public void addWithBatch(AutoCloseable batchOperator, String id,
+        S3TemporarySecretValue s3TemporarySecretValue) throws IOException {
+      if (batchOperator instanceof BatchOperation) {
+        s3TemporarySecretTable.putWithBatch((BatchOperation) batchOperator,
+            id, s3TemporarySecretValue);
+      }
+    }
+
+    @Override
+    public void deleteWithBatch(AutoCloseable batchOperator, String id)
+        throws IOException {
+      if (batchOperator instanceof BatchOperation) {
+        s3TemporarySecretTable.deleteWithBatch((BatchOperation) batchOperator,
+            id);
       }
     }
   }

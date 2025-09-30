@@ -160,7 +160,7 @@ public class VaultS3SecretStore implements S3SecretStore {
 
   @Override
   //Not implemented.
-  public S3Batcher batcher() {
+  public S3Batcher s3SecretBatcher() {
     return null;
   }
 

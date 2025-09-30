@@ -51,7 +51,7 @@ public class S3SecretStoreMap implements S3SecretStore {
   }
 
   @Override
-  public S3Batcher batcher() {
+  public S3Batcher s3SecretBatcher() {
     return null;
   }
 }

@@ -23,7 +23,7 @@ import org.apache.hadoop.ozone.om.helpers.S3TemporarySecretValue;
 /**
  * Batcher for write and read operations for temporary s3 secrets. Depend on provide batch operator.
  */
-public interface S3TemporarySecretBatcher {
+public interface S3TempSecretBatcher {
   /**
    * Add with provided batch.
    * @param batchOperator instance of batch operator.

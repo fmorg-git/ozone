@@ -87,7 +87,7 @@ public interface S3TemporarySecretManager {
     return getTemporarySecret(accessKeyId) != null;
   }
 
-  S3TemporarySecretBatcher batcher();
+  S3TempSecretBatcher batcher();
 
   default boolean isBatchSupported() {
     return batcher() != null;

@@ -124,7 +124,7 @@ public class S3SecretManagerImpl implements S3SecretManager {
 
   @Override
   public S3Batcher batcher() {
-    return s3SecretStore.batcher();
+    return s3SecretStore.s3SecretBatcher();
   }
 
   @Override
