@@ -19,7 +19,6 @@ package org.apache.hadoop.ozone.s3.signature;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.S3_AUTHINFO_CREATION_ERROR;
-import static org.apache.hadoop.ozone.s3.util.S3Consts.UNSIGNED_PAYLOAD;
 import static org.apache.hadoop.ozone.s3.util.S3Consts.X_AMZ_CONTENT_SHA256;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -178,7 +177,6 @@ public final class StringToSignProducer {
       canonicalHeaders.append(':');
       if (headers.containsKey(header)) {
         String headerValue = headers.get(header);
-        if (header.equals("content-type")) headerValue = headerValue.toLowerCase();
         canonicalHeaders.append(headerValue);
         canonicalHeaders.append(NEWLINE);
 
@@ -324,7 +322,7 @@ public final class StringToSignProducer {
   private static void validateCanonicalHeaders(
       String canonicalHeaders,
       Map<String, String> headers)
-   throws OS3Exception {
+      throws OS3Exception {
     if (!canonicalHeaders.contains(HOST + ":")) {
       LOG.error("The SignedHeaders list must include HTTP Host header");
       throw S3_AUTHINFO_CREATION_ERROR;

@@ -1,6 +1,16 @@
 package org.apache.hadoop.ozone.s3web.s3sts;
 
+import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.ACCESS_DENIED;
+import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.INTERNAL_ERROR;
+import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.S3_AUTHINFO_CREATION_ERROR;
+import static org.apache.hadoop.ozone.s3.util.S3Utils.wrapOS3Exception;
+
 import com.google.common.annotations.VisibleForTesting;
+import java.io.IOException;
+import javax.inject.Inject;
+import javax.ws.rs.container.ContainerRequestContext;
+import javax.ws.rs.container.ContainerRequestFilter;
+import javax.ws.rs.ext.Provider;
 import org.apache.hadoop.ozone.s3.AuthorizationFilter;
 import org.apache.hadoop.ozone.s3.exception.OS3Exception;
 import org.apache.hadoop.ozone.s3.exception.S3ErrorTable;
@@ -9,15 +19,6 @@ import org.apache.hadoop.ozone.s3.signature.SignatureProcessor;
 import org.apache.hadoop.ozone.s3.signature.StringToSignProducer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import javax.annotation.Priority;
-import javax.inject.Inject;
-import javax.ws.rs.container.ContainerRequestContext;
-import javax.ws.rs.container.ContainerRequestFilter;
-import javax.ws.rs.ext.Provider;
-import java.io.IOException;
-
-import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.*;
-import static org.apache.hadoop.ozone.s3.util.S3Utils.wrapOS3Exception;
 
 @S3AWSCredentialsEndpoint
 @Provider

@@ -28,7 +28,7 @@ import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos;
  * S3TemporarySecret to be saved in database.
  */
 @Immutable
-public class S3TemporarySecretValue {
+public final class S3TemporarySecretValue {
 
   private static final Codec<S3TemporarySecretValue> CODEC = new DelegatedCodec<>(
       Proto2Codec.get(OzoneManagerProtocolProtos.S3TemporarySecret.getDefaultInstance()),
@@ -37,14 +37,14 @@ public class S3TemporarySecretValue {
       S3TemporarySecretValue.class
   );
 
-  private final String accessKeyId;
-  private final String secretAccessKey;
-  private final String sessionToken;
-  private final long expirationEpochSeconds;
-  private final String roleArn;
-  private final String roleSessionName;
-  private final boolean isDeleted;
-  private final long transactionLogIndex;
+  private String accessKeyId;
+  private String secretAccessKey;
+  private String sessionToken;
+  private long expirationEpochSeconds;
+  private String roleArn;
+  private String roleSessionName;
+  private boolean isDeleted;
+  private long transactionLogIndex;
 
   public static Codec<S3TemporarySecretValue> getCodec() {
     return CODEC;
@@ -94,22 +94,35 @@ public class S3TemporarySecretValue {
         .build();
   }
 
-  private S3TemporarySecretValue(String accessKeyId,
-                                 String secretAccessKey,
-                                 String sessionToken,
-                                 long expirationEpochSeconds,
-                                 String roleArn,
-                                 String roleSessionName,
-                                 boolean isDeleted,
-                                 long transactionLogIndex) {
-    this.accessKeyId = accessKeyId;
-    this.secretAccessKey = secretAccessKey;
-    this.sessionToken = sessionToken;
-    this.expirationEpochSeconds = expirationEpochSeconds;
-    this.roleArn = roleArn;
-    this.roleSessionName = roleSessionName;
-    this.isDeleted = isDeleted;
-    this.transactionLogIndex = transactionLogIndex;
+  private S3TemporarySecretValue() {
+  }
+
+  private S3TemporarySecretValue(S3TemporarySecretValueBuilder b) {
+    initialize(b);
+  }
+
+  public void initialize(S3TemporarySecretValue s3TemporarySecretValue) {
+    initialize(new S3TemporarySecretValueBuilder()
+        .setAccessKeyId(s3TemporarySecretValue.getAccessKeyId())
+        .setSecretAccessKey(s3TemporarySecretValue.getSecretAccessKey())
+        .setSessionToken(s3TemporarySecretValue.getSessionToken())
+        .setExpirationEpochSeconds(s3TemporarySecretValue.getExpirationEpochSeconds())
+        .setRoleArn(s3TemporarySecretValue.getRoleArn())
+        .setRoleSessionName(s3TemporarySecretValue.getRoleSessionName())
+        .setIsDeleted(s3TemporarySecretValue.isDeleted())
+        .setTransactionLogIndex(s3TemporarySecretValue.getTransactionLogIndex())
+    );
+  }
+
+  private void initialize(S3TemporarySecretValueBuilder b) {
+    this.accessKeyId = b.accessKeyId;
+    this.secretAccessKey = b.secretAccessKey;
+    this.sessionToken = b.sessionToken;
+    this.expirationEpochSeconds = b.expirationEpochSeconds;
+    this.roleArn = b.roleArn;
+    this.roleSessionName = b.roleSessionName;
+    this.isDeleted = b.isDeleted;
+    this.transactionLogIndex = b.transactionLogIndex;
   }
 
   public String getAccessKeyId() {
@@ -168,7 +181,9 @@ public class S3TemporarySecretValue {
 
   @Override
   public boolean equals(final Object o) {
-    if (o == null || getClass() != o.getClass()) return false;
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
     final S3TemporarySecretValue that = (S3TemporarySecretValue) o;
     return expirationEpochSeconds == that.expirationEpochSeconds &&
         isDeleted == that.isDeleted &&
@@ -194,7 +209,9 @@ public class S3TemporarySecretValue {
     );
   }
 
-
+  /**
+   * Builder class for S3TemporarySecretValue.
+   */
   public static final class S3TemporarySecretValueBuilder {
     private String accessKeyId;
     private String secretAccessKey;
@@ -253,16 +270,7 @@ public class S3TemporarySecretValue {
     }
 
     public S3TemporarySecretValue build() {
-      return new S3TemporarySecretValue(
-          accessKeyId,
-          secretAccessKey,
-          sessionToken,
-          expirationEpochSeconds,
-          roleArn,
-          roleSessionName,
-          isDeleted,
-          transactionLogIndex
-      );
+      return new S3TemporarySecretValue(this);
     }
   }
 }
