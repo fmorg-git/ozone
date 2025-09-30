@@ -751,13 +751,6 @@ public interface ClientProtocol {
   void revokeS3Secret(String kerberosID) throws IOException;
 
   /**
-   * Get STS token for given accessId and secret.
-   * @param accessID
-   * @throws IOException
-   */
-  String getS3StsToken(String accessID) throws IOException;
-
-  /**
    * Create a tenant.
    * @param tenantId tenant name.
    * @throws IOException

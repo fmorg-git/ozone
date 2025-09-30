@@ -15,19 +15,15 @@
  * limitations under the License.
  */
 
-package org.apache.hadoop.ozone.s3web.s3sts;
+package org.apache.hadoop.ozone.om;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-import javax.ws.rs.NameBinding;
+import java.io.IOException;
 
 /**
- * This class provides the interface for the S3 AWS Credentials endpoint.
+ * Functional interface for s3 temporary secret locked actions.
+ * @param <T>
  */
-@NameBinding
-@Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.TYPE, ElementType.METHOD})
-public @interface S3AWSCredentialsEndpoint {
+public interface S3TemporarySecretFunction<T> {
+
+  T accept(S3TemporarySecretManager s3TemporarySecretManager) throws IOException;
 }

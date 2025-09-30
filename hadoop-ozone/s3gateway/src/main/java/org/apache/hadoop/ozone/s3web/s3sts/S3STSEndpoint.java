@@ -205,7 +205,7 @@ public class S3STSEndpoint extends S3STSEndpointBase {
     // TODO: Create a new S3 credentials for this role session
     // TODO: Add validated ACLs for the new credentials
     // TODO: How do we handle expired credentials? We don't support renewal?
-    String dummyCredentials = getClient().getObjectStore().getS3StsToken(userNameFromRequest());
+    // String dummyCredentials = getClient().getObjectStore().getS3StsToken(userNameFromRequest());
     // Generate AssumeRole response
     String responseXml = generateAssumeRoleResponse(roleArn, roleSessionName, duration);
 

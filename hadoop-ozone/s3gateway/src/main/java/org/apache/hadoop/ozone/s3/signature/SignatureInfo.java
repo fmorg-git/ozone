@@ -58,6 +58,7 @@ public class SignatureInfo {
   private String payloadHash = null;
 
   private String service = null;
+
   public SignatureInfo() { }
 
   private SignatureInfo(Builder b) {
@@ -148,13 +149,22 @@ public class SignatureInfo {
     this.stringToSign = strToSign;
   }
 
-  public String getPayloadHash() { return this.payloadHash;}
+  public String getPayloadHash() {
+    return this.payloadHash;
+  }
 
-  public void setPayloadHash(String payloadHash) { this.payloadHash = payloadHash; }
+  public void setPayloadHash(String payloadHash) {
+    this.payloadHash = payloadHash;
+  }
 
-  public String getService() { return service; }
+  public String getService() {
+    return service;
+  }
 
-  public void setService(String service) { this.service = service; }
+  public void setService(String service) {
+    this.service = service;
+  }
+
   /**
    * Signature version.
    */
