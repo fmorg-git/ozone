@@ -204,9 +204,6 @@ public class ObjectStore {
     return proxy.getS3Secret(kerberosID, createIfNotExist);
   }
 
-  public String getS3StsToken(String accessId) throws IOException {
-    return proxy.getS3StsToken(accessId);
-  }
   /**
    * Set secretKey for accessId.
    * @param accessId

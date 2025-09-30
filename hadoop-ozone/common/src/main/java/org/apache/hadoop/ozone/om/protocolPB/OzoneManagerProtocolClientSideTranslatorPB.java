@@ -141,8 +141,6 @@ import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.GetObje
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.GetObjectTaggingResponse;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.GetS3SecretRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.GetS3SecretResponse;
-import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.GetS3StsTokenRequest;
-import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.GetS3StsTokenResponse;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.GetS3VolumeContextRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.GetS3VolumeContextResponse;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.InfoBucketRequest;
@@ -1163,18 +1161,6 @@ public final class OzoneManagerProtocolClientSideTranslatorPB
     handleError(submitRequest(omRequest));
   }
 
-  @Override
-  public String getS3StsToken(String accessID) throws IOException {
-    GetS3StsTokenRequest request = GetS3StsTokenRequest.newBuilder()
-        .setAccessId(accessID)
-        .build();
-    OMRequest omRequest = createOMRequest(Type.GetS3StsToken)
-        .setGetS3StsTokenRequest(request)
-        .build();
-    final GetS3StsTokenResponse resp = handleError(submitRequest(omRequest))
-        .getGetS3StsTokenResponse();
-    return resp.getAccessId();
-  }
   /**
    * {@inheritDoc}
    */

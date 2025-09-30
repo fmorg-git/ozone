@@ -156,7 +156,9 @@ enum Type {
   PutObjectTagging = 140;
   GetObjectTagging = 141;
   DeleteObjectTagging = 142;
-  GetS3StsToken = 143;
+
+  GetS3TemporarySecret = 143;
+  RevokeS3TemporarySecret = 144;
 }
 
 enum SafeMode {
@@ -306,7 +308,9 @@ message OMRequest {
   optional DeleteObjectTaggingRequest       deleteObjectTaggingRequest     = 142;
   repeated SetSnapshotPropertyRequest       SetSnapshotPropertyRequests    = 143;
 
-  optional GetS3StsTokenRequest             getS3StsTokenRequest            = 144;
+  optional GetS3TemporarySecretRequest      getS3TemporarySecretRequest     = 144;
+  optional UpdateGetS3TemporarySecretRequest updateGetS3TemporarySecretRequest  = 145;
+  optional RevokeS3TemporarySecretRequest   revokeS3TemporarySecretRequest  = 146;
 }
 
 message OMResponse {
@@ -441,7 +445,7 @@ message OMResponse {
   optional PutObjectTaggingResponse          putObjectTaggingResponse      = 141;
   optional DeleteObjectTaggingResponse       deleteObjectTaggingResponse   = 142;
 
-  optional GetS3StsTokenResponse             getS3StsTokenResponse          = 143;
+  optional GetS3TemporarySecretResponse      getS3TemporarySecretResponse  = 143;
 }
 
 enum Status {
@@ -1872,12 +1876,21 @@ message SetS3SecretResponse {
     optional string secretKey = 2;
 }
 
-message GetS3StsTokenRequest {
-    optional string accessId = 1;
+message S3TemporarySecret {
+    required string accessKeyId = 1;
+    required string secretAccessKey = 2;
+    required string sessionToken = 3;
+    required uint64 expirationEpochSeconds = 4;
+    required string roleArn = 5;
+    required string roleSessionName = 6;
 }
 
-message GetS3StsTokenResponse {
-    optional string accessId = 1;
+message GetS3TemporarySecretRequest {
+    required string accessKeyId = 1;
+}
+
+message GetS3TemporarySecretResponse {
+    required S3TemporarySecret s3TemporarySecret = 1;
 }
 
 message TenantState {
@@ -2353,4 +2366,17 @@ service OzoneManagerService {
     // A client-to-OM RPC to send client requests to OM Ratis server
     rpc submitRequest(OMRequest)
           returns(OMResponse);
+}
+
+/**
+  This will be used internally by OM to replicate S3 Temporary Secret across quorum of
+  OM's.
+*/
+message UpdateGetS3TemporarySecretRequest {
+    required string accessKeyId = 1;
+    required string secretAccessKey = 2;
+}
+
+message RevokeS3TemporarySecretRequest {
+    required string accessKeyId = 1;
 }

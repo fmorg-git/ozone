@@ -441,11 +441,6 @@ public class ClientProtocolStub implements ClientProtocol {
   }
 
   @Override
-  public String getS3StsToken(String accessId) throws IOException {
-    return null;
-  }
-
-  @Override
   public void createTenant(String tenantId) throws IOException {
 
   }
