@@ -18,7 +18,6 @@
 package org.apache.hadoop.ozone.om.helpers;
 
 import java.util.Objects;
-import net.jcip.annotations.Immutable;
 import org.apache.hadoop.hdds.utils.db.Codec;
 import org.apache.hadoop.hdds.utils.db.DelegatedCodec;
 import org.apache.hadoop.hdds.utils.db.Proto2Codec;
@@ -27,7 +26,6 @@ import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos;
 /**
  * S3TemporarySecret to be saved in database.
  */
-@Immutable
 public final class S3TemporarySecretValue {
 
   private static final Codec<S3TemporarySecretValue> CODEC = new DelegatedCodec<>(
