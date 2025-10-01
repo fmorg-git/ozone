@@ -70,11 +70,11 @@ public class S3TemporarySecretManagerImpl implements S3TemporarySecretManager {
 
   @Override
   public String getTemporarySecretString(String accessKeyId) throws IOException {
-    Preconditions.checkArgument(org.apache.commons.lang3.StringUtils.isNotBlank(accessKeyId),
-        "awsAccessKeyId cannot be null or empty.");
+    Preconditions.checkArgument(StringUtils.isNotBlank(accessKeyId),
+        "accessKeyId cannot be null or empty.");
     LOG.trace("Getting temporary secret for accessKeyId: {}", accessKeyId);
 
-    S3TemporarySecretValue cacheValue = getTemporarySecret(accessKeyId);
+    S3TemporarySecretValue cacheValue = secretCache.get(accessKeyId);
     if (cacheValue != null) {
       return cacheValue.getSecretAccessKey();
     }
@@ -94,7 +94,7 @@ public class S3TemporarySecretManagerImpl implements S3TemporarySecretManager {
     secretStore.storeTemporarySecret(accessKeyId, temporarySecretValue);
     updateCache(accessKeyId, temporarySecretValue);
     if (LOG.isTraceEnabled()) {
-      LOG.trace("Secret for accessKey:{} stored", accessKeyId);
+      LOG.trace("Secret for accessKeyId:{} stored", accessKeyId);
     }
   }
 

@@ -21,7 +21,7 @@ import java.io.IOException;
 import org.apache.hadoop.ozone.om.helpers.S3TemporarySecretValue;
 
 /**
- * Batcher for write and read operations for temporary s3 secrets. Depend on provide batch operator.
+ * Batcher for write and read operations for temporary s3 secrets. Depend on provided batch operator.
  */
 public interface S3TempSecretBatcher {
   /**

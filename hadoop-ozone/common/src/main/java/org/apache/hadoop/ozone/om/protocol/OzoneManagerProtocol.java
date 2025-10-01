@@ -54,6 +54,7 @@ import org.apache.hadoop.ozone.om.helpers.OpenKeySession;
 import org.apache.hadoop.ozone.om.helpers.OzoneFileStatus;
 import org.apache.hadoop.ozone.om.helpers.OzoneFileStatusLight;
 import org.apache.hadoop.ozone.om.helpers.S3SecretValue;
+import org.apache.hadoop.ozone.om.helpers.S3TemporarySecretValue;
 import org.apache.hadoop.ozone.om.helpers.S3VolumeContext;
 import org.apache.hadoop.ozone.om.helpers.ServiceInfo;
 import org.apache.hadoop.ozone.om.helpers.ServiceInfoEx;
@@ -642,6 +643,28 @@ public interface OzoneManagerProtocol
    * @throws IOException
    */
   default void revokeS3Secret(String kerberosID) throws IOException {
+    throw new UnsupportedOperationException("OzoneManager does not require " +
+        "this to be implemented, as write requests use a new approach.");
+  }
+
+  /**
+   * Gets s3 temporary secret for given access key id.
+   * @param accessKeyId the s3 access key id
+   * @return S3TemporarySecretValue
+   * @throws IOException if error occurs while retrieving the temporary secret.
+   */
+  @Nonnull
+  default S3TemporarySecretValue getS3TemporarySecret(String accessKeyId) throws IOException {
+    throw new UnsupportedOperationException("OzoneManager does not require " +
+        "this to be implemented, as write requests use a new approach.");
+  }
+
+  /**
+   * Revokes s3 temporary secret of given access key id.
+   * @param accessKeyId the s3 access key id
+   * @throws IOException if error occurs while revoking the temporary secret.
+   */
+  default void revokeS3TemporarySecret(String accessKeyId) throws IOException {
     throw new UnsupportedOperationException("OzoneManager does not require " +
         "this to be implemented, as write requests use a new approach.");
   }

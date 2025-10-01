@@ -152,6 +152,7 @@ import org.apache.hadoop.ozone.om.helpers.OzoneFSUtils;
 import org.apache.hadoop.ozone.om.helpers.OzoneFileStatus;
 import org.apache.hadoop.ozone.om.helpers.OzoneFileStatusLight;
 import org.apache.hadoop.ozone.om.helpers.S3SecretValue;
+import org.apache.hadoop.ozone.om.helpers.S3TemporarySecretValue;
 import org.apache.hadoop.ozone.om.helpers.S3VolumeContext;
 import org.apache.hadoop.ozone.om.helpers.ServiceInfo;
 import org.apache.hadoop.ozone.om.helpers.ServiceInfoEx;
@@ -845,6 +846,32 @@ public class RpcClient implements ClientProtocol {
             "kerberosID cannot be null or empty.");
 
     ozoneManagerClient.revokeS3Secret(kerberosID);
+  }
+
+  /**
+   * Returns s3 temporary secret given an access key id.
+   * @param accessKeyId s3 access key id
+   * @return S3TemporarySecretValue
+   * @throws IOException if error occurs while retrieving the temporary secret.
+   */
+  @Override
+  @Nonnull
+  public S3TemporarySecretValue getS3TemporarySecret(String accessKeyId) throws IOException {
+    Preconditions.checkArgument(StringUtils.isNotBlank(accessKeyId),
+        "accessKeyId cannot be null or empty.");
+
+    return ozoneManagerClient.getS3TemporarySecret(accessKeyId);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public void revokeS3TemporarySecret(String accessKeyId) throws IOException {
+    Preconditions.checkArgument(StringUtils.isNotBlank(accessKeyId),
+        "accessKeyId cannot be null or empty.");
+
+    ozoneManagerClient.revokeS3TemporarySecret(accessKeyId);
   }
 
   /**

@@ -37,13 +37,13 @@ public class S3TemporarySecretInMemoryCache implements S3TemporarySecretCache {
   }
 
   @Override
-  public void put(String id, S3TemporarySecretValue secretValue) {
-    cache.put(id, secretValue);
+  public void put(String accessKeyId, S3TemporarySecretValue secretValue) {
+    cache.put(accessKeyId, secretValue);
   }
 
   @Override
-  public void invalidate(String id) {
-    cache.asMap().computeIfPresent(id, (k, secret) -> secret.deleted());
+  public void invalidate(String accessKeyId) {
+    cache.asMap().computeIfPresent(accessKeyId, (k, secret) -> secret.deleted());
   }
 
   @Override
@@ -69,7 +69,7 @@ public class S3TemporarySecretInMemoryCache implements S3TemporarySecretCache {
   }
 
   @Override
-  public S3TemporarySecretValue get(String id) {
-    return cache.getIfPresent(id);
+  public S3TemporarySecretValue get(String accessKeyId) {
+    return cache.getIfPresent(accessKeyId);
   }
 }

@@ -1599,13 +1599,13 @@ public class OmMetadataManagerImpl implements OMMetadataManager,
   }
 
   @Override
-  public void storeTemporarySecret(String accessId, S3TemporarySecretValue secret) throws IOException {
-    s3TemporarySecretTable.put(accessId, secret);
+  public void storeTemporarySecret(String accessKeyId, S3TemporarySecretValue secret) throws IOException {
+    s3TemporarySecretTable.put(accessKeyId, secret);
   }
 
   @Override
-  public S3TemporarySecretValue getTemporarySecret(String accessId) throws IOException {
-    return s3TemporarySecretTable.get(accessId);
+  public S3TemporarySecretValue getTemporarySecret(String accessKeyId) throws IOException {
+    return s3TemporarySecretTable.get(accessKeyId);
   }
 
   @Override
@@ -1861,11 +1861,11 @@ public class OmMetadataManagerImpl implements OMMetadataManager,
 
   private final class S3TemporarySecretBatcher implements S3TempSecretBatcher {
     @Override
-    public void addWithBatch(AutoCloseable batchOperator, String id,
+    public void addWithBatch(AutoCloseable batchOperator, String accessKeyId,
         S3TemporarySecretValue s3TemporarySecretValue) throws IOException {
       if (batchOperator instanceof BatchOperation) {
         s3TemporarySecretTable.putWithBatch((BatchOperation) batchOperator,
-            id, s3TemporarySecretValue);
+            accessKeyId, s3TemporarySecretValue);
       }
     }
 

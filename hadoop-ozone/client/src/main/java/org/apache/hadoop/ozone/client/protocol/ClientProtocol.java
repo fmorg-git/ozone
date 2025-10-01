@@ -58,6 +58,7 @@ import org.apache.hadoop.ozone.om.helpers.OmVolumeArgs;
 import org.apache.hadoop.ozone.om.helpers.OzoneFileStatus;
 import org.apache.hadoop.ozone.om.helpers.OzoneFileStatusLight;
 import org.apache.hadoop.ozone.om.helpers.S3SecretValue;
+import org.apache.hadoop.ozone.om.helpers.S3TemporarySecretValue;
 import org.apache.hadoop.ozone.om.helpers.S3VolumeContext;
 import org.apache.hadoop.ozone.om.helpers.TenantStateList;
 import org.apache.hadoop.ozone.om.helpers.TenantUserInfoValue;
@@ -749,6 +750,24 @@ public interface ClientProtocol {
    * @throws IOException
    */
   void revokeS3Secret(String kerberosID) throws IOException;
+
+  /**
+   * Returns S3 temporary secret given access key id.
+   * Will generate a temporary secret access key for the access key id
+   * if it doesn't exist.
+   * @param accessKeyId s3 access key id
+   * @return S3TemporarySecretValue
+   * @throws IOException if error occurs while retrieving the temporary secret.
+   */
+  @Nonnull
+  S3TemporarySecretValue getS3TemporarySecret(String accessKeyId) throws IOException;
+
+  /**
+   * Revoke S3 temporary secret for the given access key id.
+   * @param accessKeyId s3 access key id
+   * @throws IOException if error occurs while revoking the temporary secret.
+   */
+  void revokeS3TemporarySecret(String accessKeyId) throws IOException;
 
   /**
    * Create a tenant.

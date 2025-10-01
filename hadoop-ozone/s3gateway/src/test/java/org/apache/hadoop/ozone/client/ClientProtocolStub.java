@@ -49,6 +49,7 @@ import org.apache.hadoop.ozone.om.helpers.OmVolumeArgs;
 import org.apache.hadoop.ozone.om.helpers.OzoneFileStatus;
 import org.apache.hadoop.ozone.om.helpers.OzoneFileStatusLight;
 import org.apache.hadoop.ozone.om.helpers.S3SecretValue;
+import org.apache.hadoop.ozone.om.helpers.S3TemporarySecretValue;
 import org.apache.hadoop.ozone.om.helpers.S3VolumeContext;
 import org.apache.hadoop.ozone.om.helpers.TenantStateList;
 import org.apache.hadoop.ozone.om.helpers.TenantUserInfoValue;
@@ -70,6 +71,13 @@ import org.apache.hadoop.security.token.Token;
 public class ClientProtocolStub implements ClientProtocol {
   private static final String STUB_KERBEROS_ID = "stub_kerberos_id";
   private static final String STUB_SECRET = "stub_secret";
+  private static final String STUB_ACCESS_KEY_ID = "stub_access_key_id";
+  private static final String STUB_SECRET_ACCESS_KEY = "stub_secret_access_key";
+  private static final String STUB_SESSION_TOKEN = "stub_session_token";
+  private static final long STUB_EXPIRATION_EPOCH_SECONDS = 12345L;
+  private static final String STUB_ROLE_ARN = "stub_role_arn";
+  private static final String STUB_ROLE_SESSION_NAME = "stub_role_session_name";
+
   private final ObjectStoreStub objectStoreStub;
 
   public ClientProtocolStub(ObjectStoreStub objectStoreStub) {
@@ -437,6 +445,24 @@ public class ClientProtocolStub implements ClientProtocol {
 
   @Override
   public void revokeS3Secret(String kerberosID) throws IOException {
+
+  }
+
+  @Override
+  @Nonnull
+  public S3TemporarySecretValue getS3TemporarySecret(String accessKeyId) throws IOException {
+    return S3TemporarySecretValue.of(
+        STUB_ACCESS_KEY_ID,
+        STUB_SECRET_ACCESS_KEY,
+        STUB_SESSION_TOKEN,
+        STUB_EXPIRATION_EPOCH_SECONDS,
+        STUB_ROLE_ARN,
+        STUB_ROLE_SESSION_NAME
+    );
+  }
+
+  @Override
+  public void revokeS3TemporarySecret(String accessKeyId) throws IOException {
 
   }
 

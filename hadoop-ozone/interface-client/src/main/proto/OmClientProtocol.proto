@@ -1890,7 +1890,7 @@ message GetS3TemporarySecretRequest {
     required string roleArn = 2; // requested bucket/key ACLs
     required string roleSessionName = 3;
     optional uint64 durationSeconds = 4;
-    required string caller_kerberosID = 5; // to check if a caller has access to requested resources
+    required string callerKerberosID = 5; // to check if a caller has access to requested resources
 }
 
 message GetS3TemporarySecretResponse {
