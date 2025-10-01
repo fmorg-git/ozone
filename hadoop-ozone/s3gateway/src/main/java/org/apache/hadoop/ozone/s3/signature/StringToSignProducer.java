@@ -177,6 +177,9 @@ public final class StringToSignProducer {
       canonicalHeaders.append(':');
       if (headers.containsKey(header)) {
         String headerValue = headers.get(header);
+        if (header.equals("content-type")) {
+          headerValue = headerValue.toLowerCase();
+        }
         canonicalHeaders.append(headerValue);
         canonicalHeaders.append(NEWLINE);
 

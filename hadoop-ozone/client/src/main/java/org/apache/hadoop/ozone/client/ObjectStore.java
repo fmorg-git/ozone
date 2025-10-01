@@ -40,6 +40,7 @@ import org.apache.hadoop.ozone.om.helpers.BucketLayout;
 import org.apache.hadoop.ozone.om.helpers.DeleteTenantState;
 import org.apache.hadoop.ozone.om.helpers.OmVolumeArgs;
 import org.apache.hadoop.ozone.om.helpers.S3SecretValue;
+import org.apache.hadoop.ozone.om.helpers.S3TemporarySecretValue;
 import org.apache.hadoop.ozone.om.helpers.S3VolumeContext;
 import org.apache.hadoop.ozone.om.helpers.TenantStateList;
 import org.apache.hadoop.ozone.om.helpers.TenantUserInfoValue;
@@ -218,6 +219,14 @@ public class ObjectStore {
 
   public void revokeS3Secret(String kerberosID) throws IOException {
     proxy.revokeS3Secret(kerberosID);
+  }
+
+  public S3TemporarySecretValue getS3TemporarySecret(String accessKeyId) throws IOException {
+    return proxy.getS3TemporarySecret(accessKeyId);
+  }
+
+  public void revokeS3TemporarySecret(String accessKeyId) throws IOException {
+    proxy.revokeS3TemporarySecret(accessKeyId);
   }
 
   /**

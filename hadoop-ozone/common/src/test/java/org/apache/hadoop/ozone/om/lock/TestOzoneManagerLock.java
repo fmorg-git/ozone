@@ -76,6 +76,7 @@ class TestOzoneManagerLock {
     // Lock re-acquire not allowed by same thread.
     if (resource == LeveledResource.USER_LOCK ||
         resource == LeveledResource.S3_SECRET_LOCK ||
+        resource == LeveledResource.S3_TEMPORARY_SECRET_LOCK ||
         resource == LeveledResource.PREFIX_LOCK) {
       lock.acquireWriteLock(resource, resourceName);
       RuntimeException ex =
@@ -452,9 +453,9 @@ class TestOzoneManagerLock {
 
   @ParameterizedTest
   @EnumSource(mode = EnumSource.Mode.EXCLUDE,
-      // USER_LOCK, S3_SECRET_LOCK and PREFIX_LOCK disallow lock re-acquire by
-      // the same thread.
-      names = { "PREFIX_LOCK", "S3_SECRET_LOCK", "USER_LOCK" })
+      // USER_LOCK, S3_SECRET_LOCK, S3_TEMPORARY_SECRET_LOCK and PREFIX_LOCK
+      // disallow lock re-acquire by the same thread.
+      names = { "PREFIX_LOCK", "S3_SECRET_LOCK", "USER_LOCK", "S3_TEMPORARY_SECRET_LOCK" })
   void testLockHoldCount(LeveledResource resource) {
     String[] resourceName = generateResourceName(resource);
     testLockHoldCountUtil(resource, resourceName);

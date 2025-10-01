@@ -77,7 +77,16 @@ import org.slf4j.LoggerFactory;
  *     <td> 4 </td> <td> S3 Secret Lock</td>
  *   </tr>
  *   <tr>
- *     <td> 5 </td> <td> Prefix Lock </td>
+ *     <td> 5 </td> <td> S3 Temporary Secret Lock </td>
+ *   </tr>
+ *   <tr>
+ *     <td> 6 </td> <td> Key Path Lock </td>
+ *   </tr>
+ *   <tr>
+ *     <td> 7 </td> <td> Prefix Lock </td>
+ *   </tr>
+ *   <tr>
+ *     <td> 8 </td> <td> Snapshot Lock </td>
  *   </tr>
  * </table>
  *
@@ -169,8 +178,8 @@ public class OzoneManagerLock implements IOzoneManagerLock {
    * For S3_BUCKET_LOCK, VOLUME_LOCK, BUCKET_LOCK type resource, same
    * thread acquiring lock again is allowed.
    *
-   * For USER_LOCK, PREFIX_LOCK, S3_SECRET_LOCK type resource, same thread
-   * acquiring lock again is not allowed.
+   * For USER_LOCK, PREFIX_LOCK, S3_SECRET_LOCK, S3_TEMPORARY_SECRET_LOCK
+   * type resource, same thread acquiring lock again is not allowed.
    *
    * Special Note for USER_LOCK: Single thread can acquire single user lock/
    * multi user lock. But not both at the same time.
@@ -191,8 +200,8 @@ public class OzoneManagerLock implements IOzoneManagerLock {
    * For S3_BUCKET_LOCK, VOLUME_LOCK, BUCKET_LOCK type resource, same
    * thread acquiring lock again is allowed.
    *
-   * For USER_LOCK, PREFIX_LOCK, S3_SECRET_LOCK type resource, same thread
-   * acquiring lock again is not allowed.
+   * For USER_LOCK, PREFIX_LOCK, S3_SECRET_LOCK, S3_TEMPORARY_SECRET_LOCK
+   * type resource, same thread acquiring lock again is not allowed.
    *
    * Special Note for USER_LOCK: Single thread can acquire single user lock/
    * multi user lock. But not both at the same time.
@@ -213,8 +222,8 @@ public class OzoneManagerLock implements IOzoneManagerLock {
    * For S3_BUCKET_LOCK, VOLUME_LOCK, BUCKET_LOCK type resource, same
    * thread acquiring lock again is allowed.
    *
-   * For USER_LOCK, PREFIX_LOCK, S3_SECRET_LOCK type resource, same thread
-   * acquiring lock again is not allowed.
+   * For USER_LOCK, PREFIX_LOCK, S3_SECRET_LOCK, S3_TEMPORARY_SECRET_LOCK
+   * type resource, same thread acquiring lock again is not allowed.
    *
    * Special Note for USER_LOCK: Single thread can acquire single user lock/
    * multi user lock. But not both at the same time.
@@ -235,8 +244,8 @@ public class OzoneManagerLock implements IOzoneManagerLock {
    * For S3_BUCKET_LOCK, VOLUME_LOCK, BUCKET_LOCK type resource, same
    * thread acquiring lock again is allowed.
    *
-   * For USER_LOCK, PREFIX_LOCK, S3_SECRET_LOCK type resource, same thread
-   * acquiring lock again is not allowed.
+   * For USER_LOCK, PREFIX_LOCK, S3_SECRET_LOCK, S3_TEMPORARY_SECRET_LOCK
+   * type resource, same thread acquiring lock again is not allowed.
    *
    * Special Note for USER_LOCK: Single thread can acquire single user lock/
    * multi user lock. But not both at the same time.
@@ -711,9 +720,10 @@ public class OzoneManagerLock implements IOzoneManagerLock {
     USER_LOCK((byte) 3, "USER_LOCK"), // 15
 
     S3_SECRET_LOCK((byte) 4, "S3_SECRET_LOCK"), // 31
-    KEY_PATH_LOCK((byte) 5, "KEY_PATH_LOCK"), //63
-    PREFIX_LOCK((byte) 6, "PREFIX_LOCK"), //127
-    SNAPSHOT_LOCK((byte) 7, "SNAPSHOT_LOCK"); // = 255
+    S3_TEMPORARY_SECRET_LOCK((byte) 5, "S3_TEMPORARY_SECRET_LOCK"), //63
+    KEY_PATH_LOCK((byte) 6, "KEY_PATH_LOCK"), //127
+    PREFIX_LOCK((byte) 7, "PREFIX_LOCK"), //255
+    SNAPSHOT_LOCK((byte) 8, "SNAPSHOT_LOCK"); // = 511
 
     // level of the resource
     private byte lockLevel;
@@ -740,12 +750,13 @@ public class OzoneManagerLock implements IOzoneManagerLock {
 
     boolean canLock(short lockSetVal) {
 
-      // For USER_LOCK, S3_SECRET_LOCK and  PREFIX_LOCK we shall not allow
+      // For USER_LOCK, S3_SECRET_LOCK, S3_TEMPORARY_SECRET_LOCK and  PREFIX_LOCK we shall not allow
       // re-acquire locks from single thread. 2nd condition is we have
       // acquired one of these locks, but after that trying to acquire a lock
       // with less than equal of lockLevel, we should disallow.
       if (((USER_LOCK.setMask & lockSetVal) == USER_LOCK.setMask ||
           (S3_SECRET_LOCK.setMask & lockSetVal) == S3_SECRET_LOCK.setMask ||
+          (S3_TEMPORARY_SECRET_LOCK.setMask & lockSetVal) == S3_TEMPORARY_SECRET_LOCK.setMask ||
           (PREFIX_LOCK.setMask & lockSetVal) == PREFIX_LOCK.setMask)
           && setMask <= lockSetVal) {
         return false;
