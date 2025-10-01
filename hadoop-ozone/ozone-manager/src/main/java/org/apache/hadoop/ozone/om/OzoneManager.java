@@ -100,6 +100,8 @@ import static org.apache.hadoop.ozone.om.ratis.OzoneManagerRatisServer.RaftServe
 import static org.apache.hadoop.ozone.om.ratis.OzoneManagerRatisServer.getRaftGroupIdFromOmServiceId;
 import static org.apache.hadoop.ozone.om.s3.S3SecretStoreConfigurationKeys.DEFAULT_SECRET_STORAGE_TYPE;
 import static org.apache.hadoop.ozone.om.s3.S3SecretStoreConfigurationKeys.S3_SECRET_STORAGE_TYPE;
+import static org.apache.hadoop.ozone.om.s3.S3TemporarySecretStoreConfigurationKeys.DEFAULT_TEMPORARY_SECRET_STORAGE_TYPE;
+import static org.apache.hadoop.ozone.om.s3.S3TemporarySecretStoreConfigurationKeys.S3_TEMPORARY_SECRET_STORAGE_TYPE;
 import static org.apache.hadoop.ozone.protocol.proto.OzoneManagerInterServiceProtocolProtos.OzoneManagerInterService;
 import static org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OzoneManagerService;
 import static org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.PrepareStatusResponse.PrepareStatus;
@@ -283,6 +285,8 @@ import org.apache.hadoop.ozone.om.ratis_snapshot.OmRatisSnapshotProvider;
 import org.apache.hadoop.ozone.om.request.OMClientRequest;
 import org.apache.hadoop.ozone.om.s3.S3SecretCacheProvider;
 import org.apache.hadoop.ozone.om.s3.S3SecretStoreProvider;
+import org.apache.hadoop.ozone.om.s3.S3TemporarySecretCacheProvider;
+import org.apache.hadoop.ozone.om.s3.S3TemporarySecretStoreProvider;
 import org.apache.hadoop.ozone.om.service.CompactDBService;
 import org.apache.hadoop.ozone.om.service.DirectoryDeletingService;
 import org.apache.hadoop.ozone.om.service.OMRangerBGSyncService;
@@ -429,6 +433,7 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
   private final boolean isSpnegoEnabled;
   private final SecurityConfig secConfig;
   private S3SecretManager s3SecretManager;
+  private S3TemporarySecretManager s3TemporarySecretManager;
   private final boolean isOmGrpcServerEnabled;
   private volatile boolean isOmRpcServerRunning = false;
   private volatile boolean isOmGrpcServerRunning = false;
@@ -959,6 +964,30 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
         ),
         metadataManager.getLock()
     );
+
+    Class<? extends S3TemporarySecretStoreProvider> tempSecretStoreProviderClass =
+        configuration.getClass(
+            S3_TEMPORARY_SECRET_STORAGE_TYPE,
+            DEFAULT_TEMPORARY_SECRET_STORAGE_TYPE,
+            S3TemporarySecretStoreProvider.class);
+    S3TemporarySecretStore tempSecretstore;
+    try {
+      tempSecretstore = tempSecretStoreProviderClass == DEFAULT_TEMPORARY_SECRET_STORAGE_TYPE
+          ? metadataManagerImpl
+          : tempSecretStoreProviderClass
+          .getConstructor().newInstance().get(configuration);
+    } catch (Exception e) {
+      throw new IOException(e);
+    }
+    S3TemporarySecretCacheProvider tempSecretCacheProvider = S3TemporarySecretCacheProvider.IN_MEMORY;
+
+    s3TemporarySecretManager = new S3TemporarySecretLockedManager(
+        new S3TemporarySecretManagerImpl(
+            tempSecretstore,
+            tempSecretCacheProvider.get(configuration)
+        ),
+        metadataManager.getLock()
+    );
     if (secConfig.isSecurityEnabled() || testSecureOmFlag) {
       try {
         delegationTokenMgr = createDelegationTokenSecretManager(configuration);
@@ -1223,6 +1252,7 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
         .setService(omRpcAddressTxt)
         .setOzoneManager(this)
         .setS3SecretManager(s3SecretManager)
+        .setS3TemporarySecretManager(s3TemporarySecretManager)
         .setCertificateClient(certClient)
         .setSecretKeyClient(secretKeyClient)
         .setOmServiceId(omNodeDetails.getServiceId())
@@ -1755,6 +1785,10 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
 
   public S3SecretManager getS3SecretManager() {
     return s3SecretManager;
+  }
+
+  public S3TemporarySecretManager getS3TemporarySecretManager() {
+    return s3TemporarySecretManager;
   }
 
   /**

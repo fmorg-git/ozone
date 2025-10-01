@@ -63,6 +63,8 @@ public final class OMAuditLogger {
     CMD_AUDIT_ACTION_MAP.put(Type.GetS3Secret, OMAction.GET_S3_SECRET);
     CMD_AUDIT_ACTION_MAP.put(Type.SetS3Secret, OMAction.SET_S3_SECRET);
     CMD_AUDIT_ACTION_MAP.put(Type.RevokeS3Secret, OMAction.REVOKE_S3_SECRET);
+    CMD_AUDIT_ACTION_MAP.put(Type.GetS3TemporarySecret, OMAction.GET_S3_TEMPORARY_SECRET);
+    CMD_AUDIT_ACTION_MAP.put(Type.RevokeS3TemporarySecret, OMAction.REVOKE_S3_TEMPORARY_SECRET);
     CMD_AUDIT_ACTION_MAP.put(Type.CreateTenant, OMAction.CREATE_TENANT);
     CMD_AUDIT_ACTION_MAP.put(Type.DeleteTenant, OMAction.DELETE_TENANT);
     CMD_AUDIT_ACTION_MAP.put(Type.TenantAssignUserAccessId, OMAction.TENANT_ASSIGN_USER_ACCESSID);

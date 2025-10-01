@@ -46,6 +46,7 @@ import org.apache.hadoop.hdds.security.x509.exception.CertificateException;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.ozone.om.OzoneManager;
 import org.apache.hadoop.ozone.om.S3SecretManager;
+import org.apache.hadoop.ozone.om.S3TemporarySecretManager;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
 import org.apache.hadoop.ozone.om.exceptions.OMLeaderNotReadyException;
 import org.apache.hadoop.ozone.om.exceptions.OMNotLeaderException;
@@ -74,6 +75,7 @@ public class OzoneDelegationTokenSecretManager
   private final Map<OzoneTokenIdentifier, TokenInfo> currentTokens;
   private final OzoneSecretStore store;
   private final S3SecretManager s3SecretManager;
+  private final S3TemporarySecretManager s3TemporarySecretManager;
   private Thread tokenRemoverThread;
   private final long tokenRemoverScanInterval;
   private final String omServiceId;
@@ -98,6 +100,7 @@ public class OzoneDelegationTokenSecretManager
     currentTokens = new ConcurrentHashMap<>();
     this.tokenRemoverScanInterval = b.tokenRemoverScanInterval;
     this.s3SecretManager = b.s3SecretManager;
+    this.s3TemporarySecretManager = b.s3TemporarySecretManager;
     this.ozoneManager = b.ozoneManager;
     this.store = new OzoneSecretStore(b.ozoneConf,
         this.ozoneManager.getMetadataManager());
@@ -115,6 +118,7 @@ public class OzoneDelegationTokenSecretManager
     private long tokenRemoverScanInterval;
     private Text service;
     private S3SecretManager s3SecretManager;
+    private S3TemporarySecretManager s3TemporarySecretManager;
     private CertificateClient certClient;
     private String omServiceId;
     private OzoneManager ozoneManager;
@@ -151,6 +155,11 @@ public class OzoneDelegationTokenSecretManager
 
     public Builder setS3SecretManager(S3SecretManager s3SecManager) {
       this.s3SecretManager = s3SecManager;
+      return this;
+    }
+
+    public Builder setS3TemporarySecretManager(S3TemporarySecretManager s3TempSecretManager) {
+      this.s3TemporarySecretManager = s3TempSecretManager;
       return this;
     }
 
