@@ -45,6 +45,7 @@ import org.apache.hadoop.ozone.om.helpers.S3VolumeContext;
 import org.apache.hadoop.ozone.om.helpers.TenantStateList;
 import org.apache.hadoop.ozone.om.helpers.TenantUserInfoValue;
 import org.apache.hadoop.ozone.om.helpers.TenantUserList;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos;
 import org.apache.hadoop.ozone.security.OzoneTokenIdentifier;
 import org.apache.hadoop.ozone.security.acl.OzoneObj;
 import org.apache.hadoop.ozone.snapshot.CancelSnapshotDiffResponse;
@@ -101,6 +102,12 @@ public class ObjectStore {
   @VisibleForTesting
   public ClientProtocol getClientProxy() {
     return proxy;
+  }
+
+  public OzoneManagerProtocolProtos.AssumeRoleResponse assumeRole(String roleArn,
+                                                                  String roleSessionName,
+                                                                  int durationSeconds) throws IOException {
+    return proxy.assumeRole(roleArn, roleSessionName, durationSeconds);
   }
 
   /**

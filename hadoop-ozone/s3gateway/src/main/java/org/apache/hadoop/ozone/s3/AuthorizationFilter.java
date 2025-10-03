@@ -65,6 +65,12 @@ public class AuthorizationFilter implements ContainerRequestFilter {
       IOException {
     try {
       signatureInfo.initialize(signatureProcessor.parseSignature());
+      // If the request carries an STS session token, ensure it is present in signed headers
+      // so that OM can validate it with STSSecurityUtil when building S3Authentication
+      String sessionToken = context.getHeaders().getFirst("X-Amz-Security-Token");
+      if (sessionToken != null && !sessionToken.isEmpty()) {
+        signatureInfo.setSessionToken(sessionToken);
+      }
       if (signatureInfo.getVersion() == Version.V4) {
         signatureInfo.setStrToSign(
             StringToSignProducer.createSignatureBase(signatureInfo, context));

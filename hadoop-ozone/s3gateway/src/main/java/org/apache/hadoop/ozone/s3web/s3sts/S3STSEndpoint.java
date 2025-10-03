@@ -18,10 +18,8 @@
 package org.apache.hadoop.ozone.s3web.s3sts;
 
 import java.io.IOException;
+import java.io.StringWriter;
 import java.time.Instant;
-import java.time.format.DateTimeFormatter;
-import java.util.Base64;
-import java.util.Random;
 import java.util.UUID;
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
@@ -31,6 +29,10 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.Marshaller;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos;
 import org.apache.hadoop.ozone.s3.exception.OS3Exception;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -205,8 +207,6 @@ public class S3STSEndpoint extends S3STSEndpointBase {
     // TODO: Create a new S3 credentials for this role session
     // TODO: Add validated ACLs for the new credentials
     // TODO: How do we handle expired credentials? We don't support renewal?
-    // String dummyCredentials = getClient().getObjectStore().getS3StsToken(userNameFromRequest());
-    // Generate AssumeRole response
     String responseXml = generateAssumeRoleResponse(roleArn, roleSessionName, duration);
 
     return Response.ok(responseXml)
@@ -226,76 +226,38 @@ public class S3STSEndpoint extends S3STSEndpointBase {
     return roleSessionName.matches("[a-zA-Z0-9+=,.@\\-]+");
   }
 
-  // TODO: replace mock implementation with actual logic to generate new credentials
-  private String generateAssumeRoleResponse(String roleArn, String roleSessionName, int duration) {
-    // Generate realistic-looking temporary credentials
-    String accessKeyId = "ASIA" + generateRandomAlphanumeric(16); // AWS temp keys start with ASIA
-    String secretAccessKey = generateRandomBase64(40);
-    String sessionToken = generateSessionToken();
-    String expiration = getExpirationTime(duration);
+  private String generateAssumeRoleResponse(String roleArn, String roleSessionName, int duration)
+      throws IOException {
+    try {
+      // Call object store directly for assumeRole
+      OzoneManagerProtocolProtos.AssumeRoleResponse stsResponse =
+          getClient().getObjectStore().assumeRole(roleArn, roleSessionName, duration);
 
-    // Generate AssumedRoleId (format: AROLEID:RoleSessionName)
-    String roleId = "AROA" + generateRandomAlphanumeric(16);
-    String assumedRoleId = roleId + ":" + roleSessionName;
+      S3AssumeRoleResponseXml response = new S3AssumeRoleResponseXml();
+      S3AssumeRoleResponseXml.AssumeRoleResult result = new S3AssumeRoleResponseXml.AssumeRoleResult();
+      S3AssumeRoleResponseXml.Credentials creds = new S3AssumeRoleResponseXml.Credentials();
+      creds.setAccessKeyId(stsResponse.getAccessKeyId());
+      creds.setSecretAccessKey(stsResponse.getSecretAccessKey());
+      creds.setSessionToken(stsResponse.getSessionToken());
+      creds.setExpiration(Instant.ofEpochSecond(stsResponse.getExpirationEpochSeconds()).toString());
+      result.setCredentials(creds);
+      S3AssumeRoleResponseXml.AssumedRoleUser user = new S3AssumeRoleResponseXml.AssumedRoleUser();
+      user.setAssumedRoleId(stsResponse.getAssumedRoleId());
+      user.setArn(roleArn);
+      result.setAssumedRoleUser(user);
+      response.setAssumeRoleResult(result);
+      S3AssumeRoleResponseXml.ResponseMetadata meta = new S3AssumeRoleResponseXml.ResponseMetadata();
+      meta.setRequestId(UUID.randomUUID().toString());
+      response.setResponseMetadata(meta);
 
-    String requestId = UUID.randomUUID().toString();
-
-    return String.format(
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>%n" +
-            "<AssumeRoleResponse xmlns=\"https://sts.amazonaws.com/doc/2011-06-15/\">%n" +
-            "  <AssumeRoleResult>%n" +
-            "    <Credentials>%n" +
-            "      <AccessKeyId>%s</AccessKeyId>%n" +
-            "      <SecretAccessKey>%s</SecretAccessKey>%n" +
-            "      <SessionToken>%s</SessionToken>%n" +
-            "      <Expiration>%s</Expiration>%n" +
-            "    </Credentials>%n" +
-            "    <AssumedRoleUser>%n" +
-            "      <AssumedRoleId>%s</AssumedRoleId>%n" +
-            "      <Arn>%s</Arn>%n" +
-            "    </AssumedRoleUser>%n" +
-            "  </AssumeRoleResult>%n" +
-            "  <ResponseMetadata>%n" +
-            "    <RequestId>%s</RequestId>%n" +
-            "  </ResponseMetadata>%n" +
-            "</AssumeRoleResponse>",
-        accessKeyId, secretAccessKey, sessionToken, expiration,
-        assumedRoleId, roleArn, requestId);
-  }
-
-  // Helper methods to generate random alphanumeric and base64 strings for mock credentials.
-  // TODO: these should be replaced with actual credential generation logic.
-  private String generateRandomAlphanumeric(int length) {
-    String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    StringBuilder sb = new StringBuilder();
-    Random random = new Random();
-    for (int i = 0; i < length; i++) {
-      sb.append(chars.charAt(random.nextInt(chars.length())));
+      JAXBContext ctx = JAXBContext.newInstance(S3AssumeRoleResponseXml.class);
+      Marshaller marshaller = ctx.createMarshaller();
+      marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
+      StringWriter sw = new StringWriter();
+      marshaller.marshal(response, sw);
+      return sw.toString();
+    } catch (JAXBException e) {
+      throw new IOException("Failed to marshal AssumeRole response", e);
     }
-    return sb.toString();
-  }
-
-  private String generateRandomBase64(int length) {
-    String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    StringBuilder sb = new StringBuilder();
-    Random random = new Random();
-    for (int i = 0; i < length; i++) {
-      sb.append(chars.charAt((random.nextInt(chars.length()))));
-    }
-    return sb.toString();
-  }
-
-  private String generateSessionToken() {
-    byte[] tokenBytes = new byte[128];
-    Random random = new Random();
-    for (int i = 0; i < tokenBytes.length; i++) {
-      tokenBytes[i] = (byte) random.nextInt(256);
-    }
-    return Base64.getEncoder().encodeToString(tokenBytes);
-  }
-
-  private String getExpirationTime(int durationSeconds) {
-    Instant expiration = Instant.now().plusSeconds(durationSeconds);
-    return DateTimeFormatter.ISO_INSTANT.format(expiration);
   }
 }

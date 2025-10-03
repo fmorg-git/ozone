@@ -26,6 +26,7 @@ import jakarta.annotation.Nonnull;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.file.InvalidPathException;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
@@ -53,6 +54,8 @@ import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.LayoutVersion;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMResponse;
+import org.apache.hadoop.ozone.security.STSSecurityUtil;
+import org.apache.hadoop.ozone.security.STSTokenIdentifier;
 import org.apache.hadoop.ozone.security.acl.IAccessAuthorizer;
 import org.apache.hadoop.ozone.security.acl.OzoneObj;
 import org.apache.hadoop.ozone.security.acl.OzoneObjInfo;
@@ -164,11 +167,48 @@ public abstract class OMClientRequest implements RequestAuditor {
     OzoneManagerProtocolProtos.UserInfo.Builder userInfo =
         OzoneManagerProtocolProtos.UserInfo.newBuilder();
 
-    // If S3 Authentication is set, determine user based on access ID.
+    // If S3 Authentication is set, determine user based on STS token first,
+    // falling back to accessId mapping if session token not present.
     if (omRequest.hasS3Authentication()) {
-      String principal = OzoneAclUtils.accessIdToUserPrincipal(
-          omRequest.getS3Authentication().getAccessId());
-      userInfo.setUserName(principal);
+      // Validate and extract caller principal from STS session token if it
+      // was provided. Perform a few sanity-checks before we trust its
+      // contents.
+      if (omRequest.getS3Authentication().hasSessionToken()) {
+        try {
+          // Decode STS token using the new STSTokenIdentifier
+          final STSTokenIdentifier stsToken = STSSecurityUtil.constructSTSToken(
+              omRequest.getS3Authentication().getSessionToken()
+          );
+
+          // 1) Check temporal validity – reject expired tokens.
+          final Instant now = Instant.now();
+          Preconditions.checkArgument(!stsToken.isExpired(now),
+              "STS token is expired at the current time");
+
+          // 2) Signature verification will be performed in the service layer
+          //    where an OzoneManager reference is available (see
+          //    STSSecurityUtil.validateSTSToken).
+
+          // Map the request to the *original* access ID so that temporary
+          // STS credentials inherit the ACLs of the user that created them.
+          String origId = stsToken.getOriginalAccessKeyId();
+          String principal;
+          if (origId != null && !origId.isEmpty()) {
+            LOG.info("[FM] Original access key id: {}", origId);
+            principal = OzoneAclUtils.accessIdToUserPrincipal(origId);
+            LOG.info("[FM] Principal: {}", principal);
+          } else {
+            throw new AuthenticationException("Invalid STS Token");
+          }
+          userInfo.setUserName(principal);
+        } catch (Exception e) {
+          throw new IOException("Error with STS Token", e);
+        }
+      } else {
+        String principal = OzoneAclUtils.accessIdToUserPrincipal(
+            omRequest.getS3Authentication().getAccessId());
+        userInfo.setUserName(principal);
+      }
     } else if (user != null) {
       // Added not null checks, as in UT's these values might be null.
       userInfo.setUserName(user.getUserName());

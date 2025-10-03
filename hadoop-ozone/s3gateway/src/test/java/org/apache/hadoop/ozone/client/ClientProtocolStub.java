@@ -829,4 +829,11 @@ public class ClientProtocolStub implements ClientProtocol {
     getBucket(volumeName, bucketName).deleteObjectTagging(keyName);
   }
 
+  @Override
+  public OzoneManagerProtocolProtos.AssumeRoleResponse assumeRole(final String roleArn,
+                                                                  final String roleSessionName,
+                                                                  final int durationSeconds) throws IOException {
+    return null;
+  }
+
 }

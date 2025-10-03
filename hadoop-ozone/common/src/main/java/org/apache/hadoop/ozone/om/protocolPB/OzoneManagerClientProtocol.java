@@ -17,8 +17,10 @@
 
 package org.apache.hadoop.ozone.om.protocolPB;
 
+import java.io.IOException;
 import org.apache.hadoop.ozone.om.protocol.OzoneManagerProtocol;
 import org.apache.hadoop.ozone.om.protocol.S3Auth;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos;
 
 /**
  * OzoneManagerClientProtocol defines interfaces needed on the client side
@@ -38,4 +40,17 @@ public interface OzoneManagerClientProtocol extends OzoneManagerProtocol {
   void clearThreadLocalS3Auth();
 
   ThreadLocal<S3Auth> getS3CredentialsProvider();
+
+  /**
+   * Generate an STS token for AssumeRole operation.
+   * @param roleArn The ARN of the role to assume
+   * @param roleSessionName The session name for the role
+   * @param durationSeconds The duration in seconds for the token validity
+   * @return STSTokenResponse containing temporary credentials
+   * @throws IOException if any problem occurs while assuming the role
+   */
+  OzoneManagerProtocolProtos.AssumeRoleResponse assumeRole(String roleArn,
+                                                           String roleSessionName,
+                                                           int durationSeconds)
+      throws IOException;
 }

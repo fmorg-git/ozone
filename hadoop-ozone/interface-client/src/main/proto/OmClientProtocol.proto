@@ -159,6 +159,7 @@ enum Type {
 
   GetS3TemporarySecret = 143;
   RevokeS3TemporarySecret = 144;
+  AssumeRole = 145;
 }
 
 enum SafeMode {
@@ -311,6 +312,7 @@ message OMRequest {
   optional GetS3TemporarySecretRequest      getS3TemporarySecretRequest     = 144;
   optional UpdateGetS3TemporarySecretRequest updateGetS3TemporarySecretRequest  = 145; // Q: we might not need this because
   optional RevokeS3TemporarySecretRequest   revokeS3TemporarySecretRequest  = 146;
+  optional AssumeRoleRequest               assumeRoleRequest               = 147;
 }
 
 message OMResponse {
@@ -446,6 +448,7 @@ message OMResponse {
   optional DeleteObjectTaggingResponse       deleteObjectTaggingResponse   = 142;
 
   optional GetS3TemporarySecretResponse      getS3TemporarySecretResponse  = 143;
+  optional AssumeRoleResponse                assumeRoleResponse            = 144;
 }
 
 enum Status {
@@ -1483,6 +1486,7 @@ message OMTokenProto {
     enum Type {
       DELEGATION_TOKEN = 1;
       S3AUTHINFO = 2;
+      S3_STS_TOKEN = 3;
     };
     required Type   type           = 1;
     optional uint32 version        = 2;
@@ -1500,6 +1504,10 @@ message OMTokenProto {
     optional string strToSign      = 14;
     optional string omServiceId    = 15 [deprecated = true];
     optional string secretKeyId    = 16;
+    // STS-specific fields
+    optional string roleArn        = 17;
+    optional string roleSessionName = 18;
+    optional string originalAccessKeyId = 19;
 }
 
 message SecretKeyProto {
@@ -2272,6 +2280,9 @@ message S3Authentication {
     optional string stringToSign = 1;
     optional string signature = 2;
     optional string accessId = 3;
+    // If present, indicates this request uses STS temporary credentials
+    // and carries the base64-encoded session token for validation.
+    optional string sessionToken = 4;
 }
 
 message RecoverLeaseRequest {
@@ -2383,4 +2394,18 @@ message UpdateGetS3TemporarySecretRequest {
 
 message RevokeS3TemporarySecretRequest {
     required string accessKeyId = 1;
+}
+
+message AssumeRoleRequest {
+    required string roleArn = 1;
+    required string roleSessionName = 2;
+    optional int32 durationSeconds = 3 [default = 3600];
+}
+
+message AssumeRoleResponse {
+    required string accessKeyId = 1;
+    required string secretAccessKey = 2;
+    required string sessionToken = 3;
+    required uint64 expirationEpochSeconds = 4;
+    required string assumedRoleId = 5;
 }

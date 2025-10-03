@@ -311,6 +311,8 @@ import org.apache.hadoop.ozone.protocolPB.OzoneManagerProtocolServerSideTranslat
 import org.apache.hadoop.ozone.security.OMCertificateClient;
 import org.apache.hadoop.ozone.security.OzoneDelegationTokenSecretManager;
 import org.apache.hadoop.ozone.security.OzoneTokenIdentifier;
+import org.apache.hadoop.ozone.security.STSSecurityUtil;
+import org.apache.hadoop.ozone.security.STSTokenSecretManager;
 import org.apache.hadoop.ozone.security.acl.IAccessAuthorizer;
 import org.apache.hadoop.ozone.security.acl.IAccessAuthorizer.ACLIdentityType;
 import org.apache.hadoop.ozone.security.acl.IAccessAuthorizer.ACLType;
@@ -381,6 +383,7 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
 
   private final ReconfigurationHandler reconfigurationHandler;
   private OzoneDelegationTokenSecretManager delegationTokenMgr;
+  private STSTokenSecretManager stsTokenSecretManager;
   private OzoneBlockTokenSecretManager blockTokenMgr;
   private CertificateClient certClient;
   private SecretKeyClient secretKeyClient;
@@ -858,6 +861,30 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
     return S3_AUTH.get();
   }
 
+  /**
+   * Returns the effective accessId for the current request, resolving the
+   * original access key id in case of STS temporary credentials.
+   */
+  public static String getEffectiveAccessId() throws OMException {
+    S3Authentication s3Auth = getS3Auth();
+    if (s3Auth == null) {
+      return null;
+    }
+
+    // If session token is present, try to resolve originalAccessKeyId from token
+    if (s3Auth.hasSessionToken() && !s3Auth.getSessionToken().isEmpty()) {
+      String originalAccessKeyId = STSSecurityUtil.extractOriginalAccessKeyId(
+          s3Auth.getSessionToken()
+      );
+      if (originalAccessKeyId != null && !originalAccessKeyId.isEmpty()) {
+        return originalAccessKeyId;
+      } else {
+        throw new OMException("Invalid STS Token format", INVALID_REQUEST);
+      }
+    }
+    return s3Auth.getAccessId();
+  }
+
   /** Returns the ThreadName prefix for the current OM. */
   public String getThreadNamePrefix() {
     return threadPrefix;
@@ -991,6 +1018,7 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
     if (secConfig.isSecurityEnabled() || testSecureOmFlag) {
       try {
         delegationTokenMgr = createDelegationTokenSecretManager(configuration);
+        stsTokenSecretManager = createSTSTokenSecretManager();
       } catch (IllegalArgumentException e) {
         if (metadataManager != null) {
           // to avoid the unit test leak report failure
@@ -1267,6 +1295,10 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
     return new OzoneBlockTokenSecretManager(expiryTime, secretKeyClient);
   }
 
+  private STSTokenSecretManager createSTSTokenSecretManager() {
+    return new STSTokenSecretManager(secretKeyClient);
+  }
+
   private void stopSecretManager() {
     if (secretKeyClient != null) {
       LOG.info("Stopping secret key client.");
@@ -1281,12 +1313,27 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
         LOG.error("Failed to stop delegation token manager", e);
       }
     }
+
+    if (stsTokenSecretManager != null) {
+      // STS token secret manager doesn't need explicit stop method
+      // as it uses the shared secret key client
+      LOG.info("Stopping OM STS token secret manager.");
+    }
   }
 
   @Override
   public UUID refetchSecretKey() {
     secretKeyClient.refetchSecretKey();
     return secretKeyClient.getCurrentSecretKey().getId();
+  }
+
+  /**
+   * Get the secret key client for this OzoneManager.
+   *
+   * @return the secret key client
+   */
+  public SecretKeyClient getSecretKeyClient() {
+    return secretKeyClient;
   }
 
   @VisibleForTesting
@@ -1358,6 +1405,9 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
     }
     if (delegationTokenMgr != null) {
       delegationTokenMgr.setSecretKeyClient(secretKeyClient);
+    }
+    if (stsTokenSecretManager != null) {
+      stsTokenSecretManager.setSecretKeyClient(secretKeyClient);
     }
   }
 
@@ -3793,7 +3843,12 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
             s3Volume);
       }
     } else {
-      String accessId = s3Auth.getAccessId();
+      // If this S3 request is authenticated with an STS session token, map
+      // the request to the *original* long-lived access ID so that the
+      // temporary credentials inherit that user's ACLs. Otherwise, fall back
+      // to the accessId included directly in the S3Authentication.
+      final String accessId = getEffectiveAccessId();
+
       // If S3 Multi-Tenancy is not enabled, all S3 requests will be redirected
       // to the default s3v for compatibility
       final Optional<String> optionalTenantId = isS3MultiTenancyEnabled() ?
@@ -4466,6 +4521,10 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
     return delegationTokenMgr;
   }
 
+  public STSTokenSecretManager getSTSTokenSecretManager() {
+    return stsTokenSecretManager;
+  }
+
   /**
    * Return the list of Ozone administrators in effect.
    */
@@ -4565,8 +4624,8 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
     if (aclEnabled) {
       UserGroupInformation ugi = getRemoteUser();
       if (getS3Auth() != null) {
-        ugi = UserGroupInformation.createRemoteUser(
-            OzoneAclUtils.accessIdToUserPrincipal(getS3Auth().getAccessId()));
+        String principal = OzoneAclUtils.accessIdToUserPrincipal(getEffectiveAccessId());
+        ugi = UserGroupInformation.createRemoteUser(principal);
       }
       InetAddress remoteIp = Server.getRemoteIp();
       resolved = resolveBucketLink(requested, new HashSet<>(),

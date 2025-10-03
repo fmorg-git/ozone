@@ -68,6 +68,7 @@ import org.apache.hadoop.ozone.om.request.key.acl.prefix.OMPrefixRemoveAclReques
 import org.apache.hadoop.ozone.om.request.key.acl.prefix.OMPrefixSetAclRequest;
 import org.apache.hadoop.ozone.om.request.s3.multipart.S3ExpiredMultipartUploadsAbortRequest;
 import org.apache.hadoop.ozone.om.request.s3.security.OMSetSecretRequest;
+import org.apache.hadoop.ozone.om.request.s3.security.S3AssumeRoleRequest;
 import org.apache.hadoop.ozone.om.request.s3.security.S3GetSecretRequest;
 import org.apache.hadoop.ozone.om.request.s3.security.S3RevokeSecretRequest;
 import org.apache.hadoop.ozone.om.request.s3.tenant.OMSetRangerServiceVersionRequest;
@@ -196,6 +197,8 @@ public final class OzoneManagerRatisUtils {
       return new OMSetSecretRequest(omRequest);
     case RevokeS3Secret:
       return new S3RevokeSecretRequest(omRequest);
+    case AssumeRole:
+      return new S3AssumeRoleRequest(omRequest);
     case PurgeKeys:
       return new OMKeyPurgeRequest(omRequest);
     case PurgeDirectories:

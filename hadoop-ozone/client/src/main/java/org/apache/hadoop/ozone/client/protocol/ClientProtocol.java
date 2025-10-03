@@ -65,6 +65,7 @@ import org.apache.hadoop.ozone.om.helpers.TenantUserInfoValue;
 import org.apache.hadoop.ozone.om.helpers.TenantUserList;
 import org.apache.hadoop.ozone.om.protocol.OzoneManagerProtocol;
 import org.apache.hadoop.ozone.om.protocol.S3Auth;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMRoleInfo;
 import org.apache.hadoop.ozone.security.OzoneTokenIdentifier;
 import org.apache.hadoop.ozone.security.acl.OzoneObj;
@@ -1376,6 +1377,19 @@ public interface ClientProtocol {
    * @throws IOException
    */
   void deleteObjectTagging(String volumeName, String bucketName, String keyName)
+      throws IOException;
+
+  /**
+   * Process the AssumeRole operation.
+   * @param roleArn The ARN of the role to assume
+   * @param roleSessionName The session name for the role
+   * @param durationSeconds The duration in seconds for the token validity
+   * @return AssumeRoleResponse containing temporary credentials
+   * @throws IOException if an error occurs during the assumeRole operation
+   */
+  OzoneManagerProtocolProtos.AssumeRoleResponse assumeRole(String roleArn,
+                                                           String roleSessionName,
+                                                           int durationSeconds)
       throws IOException;
 
 }

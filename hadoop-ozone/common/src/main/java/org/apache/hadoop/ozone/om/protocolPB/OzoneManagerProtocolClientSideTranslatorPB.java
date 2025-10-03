@@ -313,15 +313,18 @@ public final class OzoneManagerProtocolClientSideTranslatorPB
     OMRequest.Builder  builder = OMRequest.newBuilder(omRequest);
     // Insert S3 Authentication information for each request.
     if (getThreadLocalS3Auth() != null) {
-      builder.setS3Authentication(
+      S3Authentication.Builder s3AuthBuilder =
           S3Authentication.newBuilder()
-              .setSignature(
-                  threadLocalS3Auth.get().getSignature())
-              .setStringToSign(
-                  threadLocalS3Auth.get().getStringTosSign())
-              .setAccessId(
-                  threadLocalS3Auth.get().getAccessID())
-              .build());
+              .setSignature(threadLocalS3Auth.get().getSignature())
+              .setStringToSign(threadLocalS3Auth.get().getStringTosSign())
+              .setAccessId(threadLocalS3Auth.get().getAccessID());
+
+      // Include STS session token if present so OM can validate it
+      if (threadLocalS3Auth.get().getSessionToken() != null) {
+        s3AuthBuilder.setSessionToken(threadLocalS3Auth.get().getSessionToken());
+      }
+
+      builder.setS3Authentication(s3AuthBuilder.build());
     }
     if (s3AuthCheck && getThreadLocalS3Auth() == null) {
       throw new IllegalArgumentException("S3 Auth expected to " +
@@ -2677,5 +2680,23 @@ public final class OzoneManagerProtocolClientSideTranslatorPB
 
   public void setS3AuthCheck(boolean s3AuthCheck) {
     this.s3AuthCheck = s3AuthCheck;
+  }
+
+  @Override
+  public OzoneManagerProtocolProtos.AssumeRoleResponse assumeRole(String roleArn,
+                                                                  String roleSessionName,
+                                                                  int durationSeconds)
+      throws IOException {
+    OzoneManagerProtocolProtos.AssumeRoleRequest.Builder req =
+        OzoneManagerProtocolProtos.AssumeRoleRequest.newBuilder()
+            .setRoleArn(roleArn)
+            .setRoleSessionName(roleSessionName)
+            .setDurationSeconds(durationSeconds);
+
+    final OMRequest omRequest = createOMRequest(Type.AssumeRole)
+        .setAssumeRoleRequest(req)
+        .build();
+
+    return handleError(submitRequest(omRequest)).getAssumeRoleResponse();
   }
 }

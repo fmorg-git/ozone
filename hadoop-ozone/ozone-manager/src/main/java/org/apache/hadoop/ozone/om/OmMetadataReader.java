@@ -484,8 +484,9 @@ public class OmMetadataReader implements IOmMetadataReader, Auditor {
       throws IOException {
     UserGroupInformation user;
     if (getS3Auth() != null) {
+      String effectiveAccessId = OzoneManager.getEffectiveAccessId();
       String principal =
-          OzoneAclUtils.accessIdToUserPrincipal(getS3Auth().getAccessId());
+          OzoneAclUtils.accessIdToUserPrincipal(effectiveAccessId);
       user = UserGroupInformation.createRemoteUser(principal);
     } else {
       user = ProtobufRpcEngine.Server.getRemoteUser();
@@ -519,8 +520,9 @@ public class OmMetadataReader implements IOmMetadataReader, Auditor {
       throws IOException {
     UserGroupInformation user;
     if (getS3Auth() != null) {
+      String effectiveAccessId = OzoneManager.getEffectiveAccessId();
       String principal =
-          OzoneAclUtils.accessIdToUserPrincipal(getS3Auth().getAccessId());
+          OzoneAclUtils.accessIdToUserPrincipal(effectiveAccessId);
       user = UserGroupInformation.createRemoteUser(principal);
     } else {
       user = ProtobufRpcEngine.Server.getRemoteUser();

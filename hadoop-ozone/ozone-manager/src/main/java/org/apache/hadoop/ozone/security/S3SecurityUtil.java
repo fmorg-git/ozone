@@ -32,6 +32,8 @@ import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMReque
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.S3Authentication;
 import org.apache.hadoop.ozone.protocolPB.OzoneManagerProtocolServerSideTranslatorPB;
 import org.apache.hadoop.security.token.SecretManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Utility class which holds methods required for parse/validation of
@@ -40,6 +42,7 @@ import org.apache.hadoop.security.token.SecretManager;
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
 public final class S3SecurityUtil {
+  private static final Logger LOG = LoggerFactory.getLogger(S3SecurityUtil.class);
 
   private S3SecurityUtil() {
   }
@@ -54,6 +57,19 @@ public final class S3SecurityUtil {
   public static void validateS3Credential(OMRequest omRequest,
       OzoneManager ozoneManager) throws ServiceException, OMException {
     if (ozoneManager.isSecurityEnabled()) {
+      // If session token is present, validate it via STSSecurityUtil first
+      if (omRequest.hasS3Authentication() && omRequest.getS3Authentication().hasSessionToken()) {
+        LOG.info("[FM] S3 request has session token ");
+        STSSecurityUtil.validateSTSToken(omRequest.getS3Authentication().getSessionToken(),
+            ozoneManager
+        );
+        // STS token validated
+        LOG.info("[FM] S3 request session token successfully validated ");
+
+        // TODO ffm - should we technically be validating the signature as well?
+        return;
+      }
+
       OzoneTokenIdentifier s3Token = constructS3Token(omRequest);
       try {
         // authenticate user with signature verification through

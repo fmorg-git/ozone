@@ -56,6 +56,9 @@ public class S3STSEndpointBase implements Auditor {
     s3Auth = new S3Auth(signatureInfo.getStringToSign(),
         signatureInfo.getSignature(),
         signatureInfo.getAwsAccessId(), signatureInfo.getAwsAccessId());
+    if (signatureInfo.getSessionToken() != null) {
+      s3Auth.setSessionToken(signatureInfo.getSessionToken());
+    }
     ClientProtocol clientProtocol =
         getClient().getObjectStore().getClientProxy();
     clientProtocol.setThreadLocalS3Auth(s3Auth);
