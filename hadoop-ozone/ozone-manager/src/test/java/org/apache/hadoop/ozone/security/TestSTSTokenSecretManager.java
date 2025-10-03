@@ -26,6 +26,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.UUID;
@@ -51,7 +52,7 @@ public class TestSTSTokenSecretManager {
     
     UUID keyId = UUID.randomUUID();
     when(mockSecretKey.getId()).thenReturn(keyId);
-    when(mockSecretKey.sign(any(STSTokenIdentifier.class))).thenReturn("mock-signature".getBytes());
+    when(mockSecretKey.sign(any(STSTokenIdentifier.class))).thenReturn("mock-signature".getBytes(StandardCharsets.UTF_8));
     when(mockSecretKeyClient.getCurrentSecretKey()).thenReturn(mockSecretKey);
     
     // 1 hour lifetime
