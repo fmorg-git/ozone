@@ -52,7 +52,8 @@ public class TestSTSTokenSecretManager {
     
     UUID keyId = UUID.randomUUID();
     when(mockSecretKey.getId()).thenReturn(keyId);
-    when(mockSecretKey.sign(any(STSTokenIdentifier.class))).thenReturn("mock-signature".getBytes(StandardCharsets.UTF_8));
+    when(mockSecretKey.sign(any(STSTokenIdentifier.class)))
+        .thenReturn("mock-signature".getBytes(StandardCharsets.UTF_8));
     when(mockSecretKeyClient.getCurrentSecretKey()).thenReturn(mockSecretKey);
     
     // 1 hour lifetime
