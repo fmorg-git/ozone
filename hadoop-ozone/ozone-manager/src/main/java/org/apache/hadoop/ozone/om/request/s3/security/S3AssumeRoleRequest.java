@@ -32,7 +32,7 @@ import org.apache.hadoop.ozone.om.response.s3.security.S3AssumeRoleResponse;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.AssumeRoleRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.AssumeRoleResponse;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMRequest;
-import org.apache.hadoop.ozone.security.STSTokenManager;
+import org.apache.hadoop.ozone.security.STSTokenSecretManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -96,7 +96,8 @@ public class S3AssumeRoleRequest extends OMClientRequest {
           durationSeconds,
           Arrays.asList("s3:GetObject", "s3:PutObject", "s3:ListBucket") // TODO: resolve from role
       );
-      final String sessionToken = STSTokenManager.createSTSToken(tokenRequest, ozoneManager);
+      final STSTokenSecretManager stsTokenSecretManager = ozoneManager.getSTSTokenSecretManager();
+      final String sessionToken = stsTokenSecretManager.createSTSTokenString(tokenRequest);
 
       // Generate AssumedRoleId
       final String roleId = "AROA" + generateRandomAlphanumeric(16);
