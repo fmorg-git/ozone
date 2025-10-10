@@ -30,6 +30,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.UUID;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
 import org.apache.hadoop.hdds.security.symmetric.ManagedSecretKey;
 import org.apache.hadoop.hdds.security.symmetric.SecretKeySignerClient;
 import org.apache.hadoop.ozone.om.request.s3.security.STSTokenRequest;
@@ -46,56 +48,61 @@ public class TestSTSTokenSecretManager {
   private SecretKeySignerClient mockSecretKeyClient;
 
   @BeforeEach
-  public void setUp() {
+  public void setUp() throws Exception {
     mockSecretKeyClient = mock(SecretKeySignerClient.class);
     final ManagedSecretKey mockSecretKey = mock(ManagedSecretKey.class);
     
-    UUID keyId = UUID.randomUUID();
+    // Create a real SecretKey for testing
+    final KeyGenerator keyGenerator = KeyGenerator.getInstance("HmacSHA256");
+    keyGenerator.init(256);
+    final SecretKey secretKey = keyGenerator.generateKey();
+    
+    final UUID keyId = UUID.randomUUID();
     when(mockSecretKey.getId()).thenReturn(keyId);
+    when(mockSecretKey.getSecretKey()).thenReturn(secretKey);
     when(mockSecretKey.sign(any(STSTokenIdentifier.class)))
         .thenReturn("mock-signature".getBytes(StandardCharsets.UTF_8));
     when(mockSecretKeyClient.getCurrentSecretKey()).thenReturn(mockSecretKey);
-    
-    // 1 hour lifetime
+
     secretManager = new STSTokenSecretManager(mockSecretKeyClient);
   }
 
   @Test
   public void testCreateIdentifier() {
-    String tempAccessKeyId = "temp-access-key";
-    String originalAccessKeyId = "original-access-key";
-    String roleArn = "arn:aws:iam::123456789012:role/test-role";
-    String roleSessionName = "test-session";
+    final String tempAccessKeyId = "temp-access-key";
+    final String originalAccessKeyId = "original-access-key";
+    final String roleArn = "arn:aws:iam::123456789012:role/test-role";
     final int durationSeconds = 4000;
+    final String secretAccessKey = "test-secret-access-key";
 
-    STSTokenIdentifier identifier = secretManager.createIdentifier(tempAccessKeyId,
+    final STSTokenIdentifier identifier = secretManager.createIdentifier(tempAccessKeyId,
         originalAccessKeyId,
         roleArn,
-        roleSessionName,
-        durationSeconds
+        durationSeconds,
+        secretAccessKey
     );
 
     assertNotNull(identifier);
     assertEquals(tempAccessKeyId, identifier.getTempAccessKeyId());
     assertEquals(originalAccessKeyId, identifier.getOriginalAccessKeyId());
     assertEquals(roleArn, identifier.getRoleArn());
-    assertEquals(roleSessionName, identifier.getRoleSessionName());
     assertFalse(identifier.isExpired(Instant.now()));
+    assertEquals(secretAccessKey, identifier.getSecretAccessKey());
   }
 
   @Test
   public void testGenerateToken() {
-    String tempAccessKeyId = "temp-access-key";
-    String originalAccessKeyId = "original-access-key";
-    String roleArn = "arn:aws:iam::123456789012:role/test-role";
-    String roleSessionName = "test-session";
-    int durationSeconds = 4000;
+    final String tempAccessKeyId = "temp-access-key";
+    final String originalAccessKeyId = "original-access-key";
+    final String roleArn = "arn:aws:iam::123456789012:role/test-role";
+    final int durationSeconds = 4000;
+    final String secretAccessKey = "test-secret-access-key";
 
-    Token<STSTokenIdentifier> token = secretManager.generateToken(tempAccessKeyId,
+    final Token<STSTokenIdentifier> token = secretManager.generateToken(tempAccessKeyId,
         originalAccessKeyId,
         roleArn,
-        roleSessionName,
-        durationSeconds
+        durationSeconds,
+        secretAccessKey
     );
 
     assertNotNull(token);
@@ -106,19 +113,18 @@ public class TestSTSTokenSecretManager {
 
   @Test
   public void testGenerateTokenFromRequest() throws IOException {
-    STSTokenRequest request = new STSTokenRequest(
+    final STSTokenRequest request = new STSTokenRequest(
             "original-access-key",
             "arn:aws:iam::123456789012:role/test-role",
-            "test-session",
-            "temp-access-key",
+        "temp-access-key",
             3600,
-              Collections.singletonList("s3:GetObject")
-        );
+        "test-secret-access-key",
+        Collections.singletonList("s3:GetObject"));
 
-    Token<STSTokenIdentifier> token = secretManager.generateToken(request);
+    final Token<STSTokenIdentifier> token = secretManager.generateToken(request);
 
     assertNotNull(token);
-    String tokenString = secretManager.createSTSTokenString(request);
+    final String tokenString = secretManager.createSTSTokenString(request);
     assertNotNull(tokenString);
     assertFalse(tokenString.isEmpty());
   }
@@ -126,14 +132,14 @@ public class TestSTSTokenSecretManager {
   @Test
   public void testTokenExpiration() throws InterruptedException {
     // Create manager with very short lifetime (1 second)
-    STSTokenSecretManager shortLivedManager = new STSTokenSecretManager(mockSecretKeyClient);
+    final STSTokenSecretManager shortLivedManager = new STSTokenSecretManager(mockSecretKeyClient);
 
-    STSTokenIdentifier identifier = shortLivedManager.createIdentifier(
+    final STSTokenIdentifier identifier = shortLivedManager.createIdentifier(
         "tempAccessKeyId",
         "originalAccessKeyId",
         "roleArn",
-        "roleSessionName",
-        1
+        1,
+        "test-secret-access-key"
     );
 
     // Should not be expired immediately

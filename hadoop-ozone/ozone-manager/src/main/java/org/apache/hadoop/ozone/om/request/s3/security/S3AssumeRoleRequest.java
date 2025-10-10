@@ -91,11 +91,11 @@ public class S3AssumeRoleRequest extends OMClientRequest {
       final STSTokenRequest tokenRequest = new STSTokenRequest(
           originalAccessKeyId,
           roleArn,
-          roleSessionName,
           tempAccessKeyId,
           durationSeconds,
-          Arrays.asList("s3:GetObject", "s3:PutObject", "s3:ListBucket") // TODO: resolve from role
-      );
+          secretAccessKey,
+          // TODO: resolve from role
+          Arrays.asList("s3:GetObject", "s3:PutObject", "s3:ListBucket"));
       final STSTokenSecretManager stsTokenSecretManager = ozoneManager.getSTSTokenSecretManager();
       final String sessionToken = stsTokenSecretManager.createSTSTokenString(tokenRequest);
 

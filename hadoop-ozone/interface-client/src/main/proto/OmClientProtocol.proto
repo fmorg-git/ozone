@@ -1506,8 +1506,8 @@ message OMTokenProto {
     optional string secretKeyId    = 16;
     // STS-specific fields
     optional string roleArn        = 17;
-    optional string roleSessionName = 18;
-    optional string originalAccessKeyId = 19;
+    optional string originalAccessKeyId = 18;
+    optional string secretAccessKey     = 19;
 }
 
 message SecretKeyProto {

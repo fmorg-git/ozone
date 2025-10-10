@@ -25,22 +25,22 @@ import java.util.List;
 public class STSTokenRequest {
   private final String originalAccessKeyId;
   private final String roleArn;
-  private final String roleSessionName;
   private final String tempAccessKeyId;
   private final int durationSeconds;
+  private final String secretAccessKey;
   private final List<String> permissions;
 
   public STSTokenRequest(String originalAccessKeyId,
                          String roleArn,
-                         String roleSessionName,
                          String tempAccessKeyId,
                          int durationSeconds,
+                         final String secretAccessKey,
                          List<String> permissions) {
     this.originalAccessKeyId = originalAccessKeyId;
     this.roleArn = roleArn;
-    this.roleSessionName = roleSessionName;
     this.tempAccessKeyId = tempAccessKeyId;
     this.durationSeconds = durationSeconds;
+    this.secretAccessKey = secretAccessKey;
     this.permissions = permissions;
   }
 
@@ -52,16 +52,16 @@ public class STSTokenRequest {
     return roleArn;
   }
 
-  public String getRoleSessionName() {
-    return roleSessionName;
-  }
-
   public String getTempAccessKeyId() {
     return tempAccessKeyId;
   }
 
   public int getDurationSeconds() {
     return durationSeconds;
+  }
+
+  public String getSecretAccessKey() {
+    return secretAccessKey;
   }
 
   public List<String> getPermissions() {

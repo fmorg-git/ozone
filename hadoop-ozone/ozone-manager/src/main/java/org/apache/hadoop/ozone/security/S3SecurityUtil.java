@@ -49,7 +49,7 @@ public final class S3SecurityUtil {
 
   /**
    * Validate S3 Credentials which are part of {@link OMRequest}.
-   *
+   * <p>
    * If validation is successful returns, else throw exception.
    * @throws OMException         validation failure
    *         ServiceException    Server is not leader or not ready
@@ -60,14 +60,21 @@ public final class S3SecurityUtil {
       // If session token is present, validate it via STSSecurityUtil first
       if (omRequest.hasS3Authentication() && omRequest.getS3Authentication().hasSessionToken()) {
         LOG.info("[FM] S3 request has session token ");
-        STSSecurityUtil.validateSTSToken(omRequest.getS3Authentication().getSessionToken(),
-            ozoneManager
-        );
+        final String sessionToken = omRequest.getS3Authentication().getSessionToken();
+        STSSecurityUtil.validateSTSToken(sessionToken, ozoneManager);
         // STS token validated
         LOG.info("[FM] S3 request session token successfully validated ");
 
-        // TODO ffm - should we technically be validating the signature as well?
-        return;
+        // Validate signature
+        final STSTokenIdentifier stsTokenIdentifier =
+            STSSecurityUtil.constructAndDecryptSTSToken(sessionToken, ozoneManager);
+        final String secretAccessKey = stsTokenIdentifier.getSecretAccessKey();
+        if (AWSV4AuthValidator.validateRequest(omRequest.getS3Authentication().getStringToSign(),
+            omRequest.getS3Authentication().getSignature(), secretAccessKey)) {
+          return;
+        }
+        throw new OMException("STS token validation failed for token: " + sessionToken,
+            INVALID_TOKEN);
       }
 
       OzoneTokenIdentifier s3Token = constructS3Token(omRequest);

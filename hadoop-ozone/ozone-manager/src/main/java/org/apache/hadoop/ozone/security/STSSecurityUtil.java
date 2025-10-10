@@ -20,7 +20,6 @@ package org.apache.hadoop.ozone.security;
 import static org.apache.hadoop.ozone.om.exceptions.OMException.ResultCodes.INVALID_TOKEN;
 
 import com.google.protobuf.ServiceException;
-import java.io.IOException;
 import org.apache.hadoop.hdds.annotation.InterfaceAudience;
 import org.apache.hadoop.hdds.annotation.InterfaceStability;
 import org.apache.hadoop.ozone.om.OzoneManager;
@@ -28,7 +27,6 @@ import org.apache.hadoop.ozone.om.exceptions.OMException;
 import org.apache.hadoop.ozone.om.exceptions.OMLeaderNotReadyException;
 import org.apache.hadoop.ozone.om.exceptions.OMNotLeaderException;
 import org.apache.hadoop.security.token.SecretManager;
-import org.apache.hadoop.security.token.Token;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,8 +68,8 @@ public final class STSSecurityUtil {
    * <p>
    * If validation is successful returns token details, else throw exception.
    *
-   * @throws OMException validation failure
-   *                     ServiceException    Server is not leader or not ready
+   * @throws OMException          validation failure
+   *         ServiceException     Server is not leader or not ready
    */
   public static void validateSTSToken(String sessionToken,
                                       OzoneManager ozoneManager)
@@ -86,7 +84,7 @@ public final class STSSecurityUtil {
 
     try {
       // Get singleton STS token verifier
-      STSTokenVerifier verifier = getTokenVerifier(ozoneManager);
+      final STSTokenVerifier verifier = getTokenVerifier(ozoneManager);
 
       // Verify the token
       verifier.verifyToken(sessionToken);
@@ -118,11 +116,20 @@ public final class STSSecurityUtil {
    */
   public static STSTokenIdentifier constructSTSToken(String sessionToken) throws OMException {
     try {
-      Token<STSTokenIdentifier> token = new Token<>();
-      token.decodeFromUrlString(sessionToken);
-      return STSTokenIdentifier.readProtoBuf(token.getIdentifier());
-    } catch (IOException | IllegalArgumentException e) {
-      LOG.warn("Failed to decode/parse STS token: {}", e.getMessage());
+      return STSTokenVerifier.decodeTokenIntoTokenIdentifier(sessionToken);
+    } catch (SecretManager.InvalidToken e) {
+      LOG.warn("Failed to constructSTSToken: {}", e.getMessage());
+      throw new OMException("Invalid STS token format", INVALID_TOKEN);
+    }
+  }
+
+  public static STSTokenIdentifier constructAndDecryptSTSToken(String sessionToken,
+                                                               OzoneManager ozoneManager) throws OMException {
+    try {
+      final STSTokenVerifier verifier = getTokenVerifier(ozoneManager);
+      return verifier.decodeAndDecryptTokenIntoTokenIdentifier(sessionToken);
+    } catch (SecretManager.InvalidToken e) {
+      LOG.warn("Failed to constructAndDecryptSTSToken: {}", e.getMessage());
       throw new OMException("Invalid STS token format", INVALID_TOKEN);
     }
   }
@@ -131,14 +138,18 @@ public final class STSSecurityUtil {
    * Convenience helper to obtain the original caller access key id from an
    * encoded STS session token string.
    *
-   * @param sessionToken Base-64 encoded session token string
-   * @return the original (long-lived) access key id of the caller, or null if
-   *         it cannot be determined
+   * @param sessionToken        Base-64 encoded session token string
+   * @return                    the original (long-lived) access key id of the caller,
+   *                            or null if it cannot be determined
    * @throws OMException if the token cannot be decoded / parsed.
    */
   public static String extractOriginalAccessKeyId(String sessionToken) throws OMException {
-    final STSTokenIdentifier id = constructSTSToken(sessionToken);
-    return id.getOriginalAccessKeyId();
+    try {
+      return STSTokenVerifier.extractOriginalAccessKeyId(sessionToken);
+    } catch (SecretManager.InvalidToken e) {
+      LOG.warn("Failed to extractOriginalAccessKeyId: {}", e.getMessage());
+      throw new OMException("Invalid STS token format", INVALID_TOKEN);
+    }
   }
 }
 
