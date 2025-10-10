@@ -96,7 +96,7 @@ public class STSTokenIdentifier extends ShortLivedTokenIdentifier {
     this.originalAccessKeyId = originalAccessKeyId;
     this.roleArn = roleArn;
     this.secretAccessKey = secretAccessKey;
-    this.encryptionKey = encryptionKey;
+    this.encryptionKey = encryptionKey != null ? encryptionKey.clone() : null;
   }
 
   @Override
