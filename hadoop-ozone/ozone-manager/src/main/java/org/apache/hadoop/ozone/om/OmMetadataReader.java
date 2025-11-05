@@ -32,6 +32,7 @@ import java.net.InetAddress;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.ipc.ProtobufRpcEngine;
 import org.apache.hadoop.ipc.Server;
@@ -589,9 +590,9 @@ public class OmMetadataReader implements IOmMetadataReader, Auditor {
     // Attach session policy from thread-local STS token if not already set
     RequestContext normalizedContext = context;
     try {
-      if (context.getSessionPolicy() == null || context.getSessionPolicy().trim().isEmpty()) {
+      if (StringUtils.isBlank(context.getSessionPolicy())) {
         final STSTokenIdentifier id = OzoneManager.getStsTokenIdentifier();
-        if (id != null && id.getSessionPolicy() != null && !id.getSessionPolicy().trim().isEmpty()) {
+        if (id != null && !StringUtils.isEmpty(id.getSessionPolicy())) {
           normalizedContext = RequestContext.newBuilder()
               .setHost(context.getHost())
               .setIp(context.getIp())
@@ -614,18 +615,6 @@ public class OmMetadataReader implements IOmMetadataReader, Auditor {
     if (!captureLatencyNs(perfMetrics::setCheckAccessLatencyNs,
         () -> accessAuthorizer.checkAccess(obj, finalRequestContext))) {
 
-//    OzoneManagerProtocolProtos.S3Authentication s3Authentication = getS3Auth();
-//    final CheckedSupplier<Boolean, OMException> checkedSupplier =
-//        s3Authentication != null && s3Authentication.hasSessionToken() ?
-//            () -> accessAuthorizer.checkAccess2(null, true, obj, context) :
-//            () -> accessAuthorizer.checkAccess(obj, context);
-
-//    final OzoneManagerProtocolProtos.S3Authentication s3Authentication = getS3Auth();
-//    final RequestContext normalizedContext = s3Authentication != null && s3Authentication.hasSessionToken() ?
-//        new RequestContext() :
-//        context;
-//    if (!captureLatencyNs(perfMetrics::setCheckAccessLatencyNs,
-//        () -> accessAuthorizer.checkAccess(obj, normalizedContext))) {
       if (throwIfPermissionDenied) {
         String volumeName = obj.getVolumeName() != null ?
                 "Volume:" + obj.getVolumeName() + " " : "";

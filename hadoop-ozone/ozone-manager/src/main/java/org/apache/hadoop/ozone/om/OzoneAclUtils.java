@@ -24,10 +24,10 @@ import static org.apache.hadoop.ozone.security.acl.OzoneObj.ResourceType.VOLUME;
 import java.io.IOException;
 import java.net.InetAddress;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
+import org.apache.hadoop.ozone.security.STSTokenIdentifier;
 import org.apache.hadoop.ozone.security.acl.IAccessAuthorizer;
 import org.apache.hadoop.ozone.security.acl.OzoneObj;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.ozone.security.STSTokenIdentifier;
 
 /**
  * Ozone Acl Wrapper class.
@@ -195,6 +195,6 @@ public final class OzoneAclUtils {
       return null;
     }
     final String policy = identifier.getSessionPolicy();
-    return policy != null && !policy.trim().isEmpty() ? policy : null;
+    return policy != null && !policy.isBlank() ? policy : null;
   }
 }

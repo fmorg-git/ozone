@@ -147,37 +147,14 @@ public class S3AssumeRoleRequest extends OMClientRequest {
         effectiveAccessId = s3Auth.getAccessId();
       }
 
-      final String volumeName;
-      if (ozoneManager.isS3MultiTenancyEnabled()) {
-        final Optional<String> tenantOpt = ozoneManager.getMultiTenantManager()
-            .getTenantForAccessID(effectiveAccessId);
-        if (tenantOpt.isPresent()) {
-          volumeName = ozoneManager.getMultiTenantManager()
-              .getTenantVolumeName(tenantOpt.get());
-        } else {
-          volumeName = HddsClientUtils.getDefaultS3VolumeName(ozoneManager.getConfiguration());
-        }
-      } else {
-        volumeName = HddsClientUtils.getDefaultS3VolumeName(ozoneManager.getConfiguration());
-      }
-
-      final Set<org.apache.hadoop.ozone.security.acl.AssumeRoleRequest.OzoneGrant> grants =
-          awsIamPolicy == null || "".equals(awsIamPolicy.trim()) ?
-              null :
-              IamSessionPolicyResolver.resolve(awsIamPolicy,
-                  volumeName,
-                  IamSessionPolicyResolver.AuthorizerType.RANGER
-              );
-
-      final String sessionPolicy = ozoneManager.getAccessAuthorizer()
-          .generateAssumeRoleSessionPolicy(
-              new org.apache.hadoop.ozone.security.acl.AssumeRoleRequest(
-                  hostName,
-                  remoteIp,
-                  ugi,
-                  targetRoleName,
-                  grants
-              )
+      final String sessionPolicy =
+          getSessionPolicy(ozoneManager,
+              effectiveAccessId,
+              awsIamPolicy,
+              hostName,
+              remoteIp,
+              ugi,
+              targetRoleName
           );
 
       // Create STS token request and generate the session token
@@ -219,6 +196,47 @@ public class S3AssumeRoleRequest extends OMClientRequest {
           createErrorOMResponse(OmResponseUtil.getOMResponseBuilder(getOmRequest()), omException)
       );
     }
+  }
+
+  private static String getSessionPolicy(OzoneManager ozoneManager,
+                                         String effectiveAccessId,
+                                         String awsIamPolicy,
+                                         String hostName,
+                                         InetAddress remoteIp,
+                                         UserGroupInformation ugi,
+                                         String targetRoleName) throws IOException {
+    final String volumeName;
+    if (ozoneManager.isS3MultiTenancyEnabled()) {
+      final Optional<String> tenantOpt = ozoneManager.getMultiTenantManager()
+          .getTenantForAccessID(effectiveAccessId);
+      if (tenantOpt.isPresent()) {
+        volumeName = ozoneManager.getMultiTenantManager()
+            .getTenantVolumeName(tenantOpt.get());
+      } else {
+        volumeName = HddsClientUtils.getDefaultS3VolumeName(ozoneManager.getConfiguration());
+      }
+    } else {
+      volumeName = HddsClientUtils.getDefaultS3VolumeName(ozoneManager.getConfiguration());
+    }
+
+    final Set<org.apache.hadoop.ozone.security.acl.AssumeRoleRequest.OzoneGrant> grants =
+        awsIamPolicy == null || awsIamPolicy.isBlank() ?
+            null :
+            IamSessionPolicyResolver.resolve(awsIamPolicy,
+                volumeName,
+                IamSessionPolicyResolver.AuthorizerType.RANGER
+            );
+
+    return ozoneManager.getAccessAuthorizer()
+        .generateAssumeRoleSessionPolicy(
+            new org.apache.hadoop.ozone.security.acl.AssumeRoleRequest(
+                hostName,
+                remoteIp,
+                ugi,
+                targetRoleName,
+                grants
+            )
+        );
   }
 
   @SuppressWarnings("SameParameterValue")

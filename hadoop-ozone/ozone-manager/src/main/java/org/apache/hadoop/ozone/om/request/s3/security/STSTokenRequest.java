@@ -17,12 +17,9 @@
 
 package org.apache.hadoop.ozone.om.request.s3.security;
 
-import net.jcip.annotations.Immutable;
-
 /**
  * Request object for creating STS tokens.
  */
-@Immutable
 public class STSTokenRequest {
   private final String originalAccessKeyId;
   private final String roleArn;
