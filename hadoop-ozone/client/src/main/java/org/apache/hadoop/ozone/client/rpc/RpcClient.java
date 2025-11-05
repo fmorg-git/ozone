@@ -2814,9 +2814,10 @@ public class RpcClient implements ClientProtocol {
   @Override
   public OzoneManagerProtocolProtos.AssumeRoleResponse assumeRole(String roleArn,
                                                                   String roleSessionName,
-                                                                  int durationSeconds)
+                                                                  int durationSeconds,
+                                                                  String awsIamSessionPolicy)
       throws IOException {
-    return ozoneManagerClient.assumeRole(roleArn, roleSessionName, durationSeconds);
+    return ozoneManagerClient.assumeRole(roleArn, roleSessionName, durationSeconds, awsIamSessionPolicy);
   }
 
   private static ExecutorService createThreadPoolExecutor(

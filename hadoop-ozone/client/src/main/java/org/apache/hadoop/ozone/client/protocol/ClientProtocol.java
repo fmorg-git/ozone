@@ -1381,15 +1381,18 @@ public interface ClientProtocol {
 
   /**
    * Process the AssumeRole operation.
-   * @param roleArn The ARN of the role to assume
-   * @param roleSessionName The session name for the role
-   * @param durationSeconds The duration in seconds for the token validity
+   *
+   * @param roleArn             The ARN of the role to assume
+   * @param roleSessionName     The session name for the role
+   * @param durationSeconds     The duration in seconds for the token validity
+   * @param awsIamSessionPolicy The IAM JSON session policy
    * @return AssumeRoleResponse containing temporary credentials
    * @throws IOException if an error occurs during the assumeRole operation
    */
   OzoneManagerProtocolProtos.AssumeRoleResponse assumeRole(String roleArn,
                                                            String roleSessionName,
-                                                           int durationSeconds)
+                                                           int durationSeconds,
+                                                           String awsIamSessionPolicy)
       throws IOException;
 
 }

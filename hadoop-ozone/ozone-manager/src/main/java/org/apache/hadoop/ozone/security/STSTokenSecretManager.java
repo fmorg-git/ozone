@@ -63,13 +63,16 @@ public class STSTokenSecretManager extends ShortLivedTokenSecretManager<STSToken
    * @param roleArn             the ARN of the assumed role
    * @param durationSeconds     how long the token should be valid for
    * @param secretAccessKey     the secret access key associated with the temporary access key ID
+   * @param sessionPolicy       an optional opaque identifier that further limits the scope of
+   *                            the permissions granted by the role
    * @return new STSTokenIdentifier with encryption key set
    */
   public STSTokenIdentifier createIdentifier(String tempAccessKeyId,
                                              String originalAccessKeyId,
                                              String roleArn,
                                              int durationSeconds,
-                                             String secretAccessKey) {
+                                             String secretAccessKey,
+                                             String sessionPolicy) {
     final Instant expiration = Instant.now().plusSeconds(durationSeconds);
     
     // Get the current secret key for encryption
@@ -81,7 +84,8 @@ public class STSTokenSecretManager extends ShortLivedTokenSecretManager<STSToken
         roleArn,
         expiration,
         secretAccessKey,
-        encryptionKey
+        encryptionKey,
+        sessionPolicy
     );
   }
 
@@ -94,24 +98,28 @@ public class STSTokenSecretManager extends ShortLivedTokenSecretManager<STSToken
    * @param roleArn             the ARN of the assumed role
    * @param durationSeconds     how long the token should be valid for
    * @param secretAccessKey     the secret access key associated with the temporary access key ID
+   * @param sessionPolicy       an optional opaque identifier that further limits the scope of
+   *                            the permissions granted by the role
    * @return signed STS token with encrypted sensitive fields
    */
   public Token<STSTokenIdentifier> generateToken(String tempAccessKeyId,
                                                  String originalAccessKeyId,
                                                  String roleArn,
                                                  int durationSeconds,
-                                                 String secretAccessKey) {
+                                                 String secretAccessKey,
+                                                 String sessionPolicy) {
 
     final STSTokenIdentifier identifier = createIdentifier(tempAccessKeyId,
         originalAccessKeyId,
         roleArn,
         durationSeconds,
-        secretAccessKey
+        secretAccessKey,
+        sessionPolicy
     );
     
     LOG.info("[FM] Generated STS token -> tempAccessKeyId: {}, originalAccessKeyId: {}, " +
-          "roleArn: {}, expiration: {}",
-          tempAccessKeyId, originalAccessKeyId, roleArn, identifier.getExpiry());
+          "roleArn: {}, expiration: {}, sessionPolicy: {}",
+          tempAccessKeyId, originalAccessKeyId, roleArn, identifier.getExpiry(), sessionPolicy);
     
     return generateToken(identifier);
   }
@@ -129,13 +137,13 @@ public class STSTokenSecretManager extends ShortLivedTokenSecretManager<STSToken
         request.getOriginalAccessKeyId(),
         request.getRoleArn(),
         request.getDurationSeconds(),
-        request.getSecretAccessKey()
+        request.getSecretAccessKey(),
+        request.getSessionPolicy()
     );
   }
 
   /**
    * Create an STS token and return it as an encoded string.
-   * This method maintains compatibility with the existing STSTokenManager interface.
    *
    * @param request the STS token request
    * @return base64 encoded token string

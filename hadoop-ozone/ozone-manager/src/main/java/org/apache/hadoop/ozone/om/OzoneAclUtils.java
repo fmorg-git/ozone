@@ -27,6 +27,7 @@ import org.apache.hadoop.ozone.om.exceptions.OMException;
 import org.apache.hadoop.ozone.security.acl.IAccessAuthorizer;
 import org.apache.hadoop.ozone.security.acl.OzoneObj;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.ozone.security.STSTokenIdentifier;
 
 /**
  * Ozone Acl Wrapper class.
@@ -81,13 +82,13 @@ public final class OzoneAclUtils {
       String vol, String bucket, String key, String volOwner,
       String bucketOwner, UserGroupInformation user, InetAddress remoteAddress,
       String hostName) throws IOException {
-
+    final String sessionPolicy = getSessionPolicyIfPresent();
     switch (resType) {
     //For Volume level access we only need to check {OWNER} equal
     // to Volume Owner.
     case VOLUME:
       omMetadataReader.checkAcls(resType, storeType, aclType, vol, bucket, key,
-          user, remoteAddress, hostName, true,
+          user, remoteAddress, hostName, sessionPolicy, true,
           volOwner);
       break;
     case BUCKET:
@@ -100,7 +101,7 @@ public final class OzoneAclUtils {
       if (isOwner(user, volOwner)) {
         omMetadataReader.checkAcls(resType, storeType,
             aclType, vol, bucket, key,
-            user, remoteAddress, hostName, true,
+            user, remoteAddress, hostName, sessionPolicy, true,
             volOwner);
       } else {
         IAccessAuthorizer.ACLType parentAclRight =
@@ -115,11 +116,11 @@ public final class OzoneAclUtils {
 
         omMetadataReader.checkAcls(OzoneObj.ResourceType.VOLUME, storeType,
             parentAclRight, vol, bucket, key, user,
-            remoteAddress, hostName, true,
+            remoteAddress, hostName, sessionPolicy, true,
             volOwner);
         omMetadataReader.checkAcls(resType, storeType,
             aclType, vol, bucket, key,
-            user, remoteAddress, hostName, true,
+            user, remoteAddress, hostName, sessionPolicy, true,
             bucketOwner);
       }
       break;
@@ -182,5 +183,18 @@ public final class OzoneAclUtils {
   private static boolean isOwner(UserGroupInformation callerUgi,
       String ownerName) {
     return ownerName != null && ownerName.equals(callerUgi.getShortUserName());
+  }
+
+  /**
+   * Extract session policy string from the current thread's S3 authentication
+   * if an STS token is present and contains a non-empty session policy.
+   */
+  private static String getSessionPolicyIfPresent() {
+    final STSTokenIdentifier identifier = OzoneManager.getStsTokenIdentifier();
+    if (identifier == null) {
+      return null;
+    }
+    final String policy = identifier.getSessionPolicy();
+    return policy != null && !policy.trim().isEmpty() ? policy : null;
   }
 }

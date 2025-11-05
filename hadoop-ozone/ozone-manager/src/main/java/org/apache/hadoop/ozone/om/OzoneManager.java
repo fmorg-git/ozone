@@ -379,6 +379,10 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
   private static final ThreadLocal<S3Authentication> S3_AUTH =
       new ThreadLocal<>();
 
+  // Decoded STS token for the current rpc handler thread. Set at request ingress.
+  private static final ThreadLocal<org.apache.hadoop.ozone.security.STSTokenIdentifier> STS_TOKEN =
+      new ThreadLocal<>();
+
   private static boolean securityEnabled = false;
 
   private final ReconfigurationHandler reconfigurationHandler;
@@ -859,6 +863,21 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
    */
   public static S3Authentication getS3Auth() {
     return S3_AUTH.get();
+  }
+
+  /**
+   * Set the decoded STS token identifier for the current RPC handler thread.
+   */
+  public static void setStsTokenIdentifier(
+      org.apache.hadoop.ozone.security.STSTokenIdentifier val) {
+    STS_TOKEN.set(val);
+  }
+
+  /**
+   * Get the decoded STS token identifier for the current RPC handler thread.
+   */
+  public static org.apache.hadoop.ozone.security.STSTokenIdentifier getStsTokenIdentifier() {
+    return STS_TOKEN.get();
   }
 
   /**

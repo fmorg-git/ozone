@@ -830,9 +830,10 @@ public class ClientProtocolStub implements ClientProtocol {
   }
 
   @Override
-  public OzoneManagerProtocolProtos.AssumeRoleResponse assumeRole(final String roleArn,
-                                                                  final String roleSessionName,
-                                                                  final int durationSeconds) throws IOException {
+  public OzoneManagerProtocolProtos.AssumeRoleResponse assumeRole(String roleArn,
+                                                                  String roleSessionName,
+                                                                  int durationSeconds,
+                                                                  String awsIamSessionPolicy) throws IOException {
     return null;
   }
 

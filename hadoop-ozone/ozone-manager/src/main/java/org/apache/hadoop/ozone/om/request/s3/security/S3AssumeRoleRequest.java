@@ -18,10 +18,14 @@
 package org.apache.hadoop.ozone.om.request.s3.security;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.security.SecureRandom;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.Base64;
+import java.util.Optional;
+import java.util.Set;
+import org.apache.hadoop.hdds.scm.client.HddsClientUtils;
+import org.apache.hadoop.ipc.ProtobufRpcEngine;
 import org.apache.hadoop.ozone.om.OzoneManager;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
 import org.apache.hadoop.ozone.om.execution.flowcontrol.ExecutionContext;
@@ -32,7 +36,11 @@ import org.apache.hadoop.ozone.om.response.s3.security.S3AssumeRoleResponse;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.AssumeRoleRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.AssumeRoleResponse;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMRequest;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.S3Authentication;
+import org.apache.hadoop.ozone.security.STSSecurityUtil;
 import org.apache.hadoop.ozone.security.STSTokenSecretManager;
+import org.apache.hadoop.ozone.security.acl.iam.IamSessionPolicyResolver;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,6 +95,91 @@ public class S3AssumeRoleRequest extends OMClientRequest {
       final String tempAccessKeyId = "ASIA" + generateRandomAlphanumeric(16); // AWS temp keys start with ASIA
       final String secretAccessKey = generateRandomBase64(40);
 
+      // Authorize AssumeRole and obtain an authorizer-specific session policy to embed in the STS token
+      // On the Raft apply thread, RPC context fields may be null; derive from OMRequest UserInfo as fallback
+      UserGroupInformation ugi = ProtobufRpcEngine.Server.getRemoteUser();
+      InetAddress remoteIp = ProtobufRpcEngine.Server.getRemoteIp();
+      String hostName = remoteIp != null ? remoteIp.getHostName() : null;
+
+      if (ugi == null) {
+        final String userFromReq = getOmRequest().hasUserInfo() ? getOmRequest().getUserInfo().getUserName() : null;
+        if (userFromReq != null && !userFromReq.isEmpty()) {
+          ugi = UserGroupInformation.createRemoteUser(userFromReq);
+        } else {
+          ugi = UserGroupInformation.getCurrentUser();
+        }
+      }
+
+      if (remoteIp == null) {
+        final String ipFromReq = getOmRequest().hasUserInfo() ? getOmRequest().getUserInfo().getRemoteAddress() : null;
+        if (ipFromReq != null && !ipFromReq.isEmpty()) {
+          try {
+            remoteIp = InetAddress.getByName(ipFromReq);
+          } catch (Exception ignored) {
+            // fall through to OM address fallback below
+          }
+        }
+      }
+
+      if (hostName == null || hostName.isEmpty()) {
+        final String hostFromReq = getOmRequest().hasUserInfo() ? getOmRequest().getUserInfo().getHostName() : null;
+        if (hostFromReq != null && !hostFromReq.isEmpty()) {
+          hostName = hostFromReq;
+        }
+      }
+
+      if (remoteIp == null) {
+        remoteIp = ozoneManager.getOmRpcServerAddr().getAddress();
+      }
+      if (hostName == null || hostName.isEmpty()) {
+        hostName = ozoneManager.getOmRpcServerAddr().getHostName();
+      }
+      final String targetRoleName = extractRoleNameFromArn(roleArn);
+
+      final String awsIamPolicy = request.getAwsIamPolicy();
+
+      // Determine S3 volume for this request without relying on RPC thread locals
+      final S3Authentication s3Auth = getOmRequest().getS3Authentication();
+      final String effectiveAccessId;
+      if (s3Auth.hasSessionToken() && !s3Auth.getSessionToken().isEmpty()) {
+        effectiveAccessId = STSSecurityUtil.extractOriginalAccessKeyId(s3Auth.getSessionToken());
+      } else {
+        effectiveAccessId = s3Auth.getAccessId();
+      }
+
+      final String volumeName;
+      if (ozoneManager.isS3MultiTenancyEnabled()) {
+        final Optional<String> tenantOpt = ozoneManager.getMultiTenantManager()
+            .getTenantForAccessID(effectiveAccessId);
+        if (tenantOpt.isPresent()) {
+          volumeName = ozoneManager.getMultiTenantManager()
+              .getTenantVolumeName(tenantOpt.get());
+        } else {
+          volumeName = HddsClientUtils.getDefaultS3VolumeName(ozoneManager.getConfiguration());
+        }
+      } else {
+        volumeName = HddsClientUtils.getDefaultS3VolumeName(ozoneManager.getConfiguration());
+      }
+
+      final Set<org.apache.hadoop.ozone.security.acl.AssumeRoleRequest.OzoneGrant> grants =
+          awsIamPolicy == null || "".equals(awsIamPolicy.trim()) ?
+              null :
+              IamSessionPolicyResolver.resolve(awsIamPolicy,
+                  volumeName,
+                  IamSessionPolicyResolver.AuthorizerType.RANGER
+              );
+
+      final String sessionPolicy = ozoneManager.getAccessAuthorizer()
+          .generateAssumeRoleSessionPolicy(
+              new org.apache.hadoop.ozone.security.acl.AssumeRoleRequest(
+                  hostName,
+                  remoteIp,
+                  ugi,
+                  targetRoleName,
+                  grants
+              )
+          );
+
       // Create STS token request and generate the session token
       final STSTokenRequest tokenRequest = new STSTokenRequest(
           originalAccessKeyId,
@@ -94,8 +187,8 @@ public class S3AssumeRoleRequest extends OMClientRequest {
           tempAccessKeyId,
           durationSeconds,
           secretAccessKey,
-          // TODO: resolve from role
-          Arrays.asList("s3:GetObject", "s3:PutObject", "s3:ListBucket"));
+          sessionPolicy
+      );
       final STSTokenSecretManager stsTokenSecretManager = ozoneManager.getSTSTokenSecretManager();
       final String sessionToken = stsTokenSecretManager.createSTSTokenString(tokenRequest);
 
@@ -143,5 +236,21 @@ public class S3AssumeRoleRequest extends OMClientRequest {
     final byte[] bytes = new byte[numBytes];
     SECURE_RANDOM.nextBytes(bytes);
     return Base64.getEncoder().withoutPadding().encodeToString(bytes);
+  }
+
+  /**
+   * Extract the role name from an AWS-style role ARN, falling back to the
+   * full ARN if parsing is not possible. Examples:
+   * arn:aws:iam::123456789012:role/RoleA -> RoleA
+   * arn:aws:iam::123456789012:role/path/RoleB -> RoleB
+   */
+  private static String extractRoleNameFromArn(String roleArn) {
+    if (roleArn == null) {
+      return null;
+    }
+    final int slash = roleArn.lastIndexOf('/');
+    return slash >= 0 && slash < roleArn.length() - 1
+        ? roleArn.substring(slash + 1)
+        : roleArn;
   }
 }

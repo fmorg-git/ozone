@@ -67,7 +67,7 @@ public class TestSTS {
     String roleSessionName = "test-session";
 
     Response response = endpoint.get(
-        "AssumeRole", roleArn, roleSessionName, 3600, "2011-06-15");
+        "AssumeRole", roleArn, roleSessionName, 3600, "2011-06-15", null);
 
     assertEquals(200, response.getStatus());
 
@@ -87,7 +87,7 @@ public class TestSTS {
     String roleSessionName = "test-session";
 
     Response response = endpoint.get(
-        "AssumeRole", roleArn, roleSessionName, -1, "2011-06-15");
+        "AssumeRole", roleArn, roleSessionName, -1, "2011-06-15", null);
 
     assertEquals(400, response.getStatus());
     String errorMessage = (String) response.getEntity();
@@ -100,7 +100,7 @@ public class TestSTS {
     String roleSessionName = "test-session";
 
     Response response = endpoint.get(
-        "UnsupportedAction", roleArn, roleSessionName, 3600, "2011-06-15");
+        "UnsupportedAction", roleArn, roleSessionName, 3600, "2011-06-15", null);
 
     assertEquals(400, response.getStatus());
     String errorMessage = (String) response.getEntity();

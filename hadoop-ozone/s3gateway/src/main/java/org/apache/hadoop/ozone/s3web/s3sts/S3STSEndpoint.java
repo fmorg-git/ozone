@@ -90,9 +90,10 @@ public class S3STSEndpoint extends S3STSEndpointBase {
       @QueryParam("RoleArn") String roleArn,
       @QueryParam("RoleSessionName") String roleSessionName,
       @QueryParam("DurationSeconds") Integer durationSeconds,
-      @QueryParam("Version") String version) throws OS3Exception {
+      @QueryParam("Version") String version,
+      @QueryParam("Policy") String awsIamSessionPolicy) throws OS3Exception {
 
-    return handleSTSRequest(action, roleArn, roleSessionName, durationSeconds, version);
+    return handleSTSRequest(action, roleArn, roleSessionName, durationSeconds, version, awsIamSessionPolicy);
   }
 
   /**
@@ -113,13 +114,18 @@ public class S3STSEndpoint extends S3STSEndpointBase {
       @FormParam("RoleArn") String roleArn,
       @FormParam("RoleSessionName") String roleSessionName,
       @FormParam("DurationSeconds") Integer durationSeconds,
-      @FormParam("Version") String version) throws OS3Exception {
+      @FormParam("Version") String version,
+      @FormParam("Policy") String awsIamSessionPolicy) throws OS3Exception {
 
-    return handleSTSRequest(action, roleArn, roleSessionName, durationSeconds, version);
+    return handleSTSRequest(action, roleArn, roleSessionName, durationSeconds, version, awsIamSessionPolicy);
   }
 
-  private Response handleSTSRequest(String action, String roleArn, String roleSessionName,
-      Integer durationSeconds, String version) throws OS3Exception {
+  private Response handleSTSRequest(String action,
+                                    String roleArn,
+                                    String roleSessionName,
+                                    Integer durationSeconds,
+                                    String version,
+                                    String awsIamSessionPolicy) throws OS3Exception {
     try {
       initialization();
 
@@ -139,7 +145,7 @@ public class S3STSEndpoint extends S3STSEndpointBase {
 
       switch (action) {
       case ASSUME_ROLE_ACTION:
-        return handleAssumeRole(roleArn, roleSessionName, duration);
+        return handleAssumeRole(roleArn, roleSessionName, duration, awsIamSessionPolicy);
       // These operations are not supported yet
       case GET_SESSION_TOKEN_ACTION:
       case ASSUME_ROLE_WITH_SAML_ACTION:
@@ -179,7 +185,10 @@ public class S3STSEndpoint extends S3STSEndpointBase {
     return durationSeconds;
   }
 
-  private Response handleAssumeRole(String roleArn, String roleSessionName, int duration)
+  private Response handleAssumeRole(String roleArn,
+                                    String roleSessionName,
+                                    int duration,
+                                    String awsIamSessionPolicy)
       throws IOException, OS3Exception {
     // Validate required parameters for AssumeRole. RoleArn is required to pass the
     if (roleArn == null || roleArn.isEmpty()) {
@@ -207,7 +216,7 @@ public class S3STSEndpoint extends S3STSEndpointBase {
     // TODO: Create a new S3 credentials for this role session
     // TODO: Add validated ACLs for the new credentials
     // TODO: How do we handle expired credentials? We don't support renewal?
-    String responseXml = generateAssumeRoleResponse(roleArn, roleSessionName, duration);
+    String responseXml = generateAssumeRoleResponse(roleArn, roleSessionName, duration, awsIamSessionPolicy);
 
     return Response.ok(responseXml)
         .header("Content-Type", "text/xml")
@@ -226,12 +235,15 @@ public class S3STSEndpoint extends S3STSEndpointBase {
     return roleSessionName.matches("[a-zA-Z0-9+=,.@\\-]+");
   }
 
-  private String generateAssumeRoleResponse(String roleArn, String roleSessionName, int duration)
+  private String generateAssumeRoleResponse(String roleArn,
+                                            String roleSessionName,
+                                            int duration,
+                                            String awsIamSessionPolicy)
       throws IOException {
     try {
       // Call object store directly for assumeRole
       OzoneManagerProtocolProtos.AssumeRoleResponse stsResponse =
-          getClient().getObjectStore().assumeRole(roleArn, roleSessionName, duration);
+          getClient().getObjectStore().assumeRole(roleArn, roleSessionName, duration, awsIamSessionPolicy);
 
       S3AssumeRoleResponseXml response = new S3AssumeRoleResponseXml();
       S3AssumeRoleResponseXml.AssumeRoleResult result = new S3AssumeRoleResponseXml.AssumeRoleResult();

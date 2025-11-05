@@ -17,31 +17,32 @@
 
 package org.apache.hadoop.ozone.om.request.s3.security;
 
-import java.util.List;
+import net.jcip.annotations.Immutable;
 
 /**
  * Request object for creating STS tokens.
  */
+@Immutable
 public class STSTokenRequest {
   private final String originalAccessKeyId;
   private final String roleArn;
   private final String tempAccessKeyId;
   private final int durationSeconds;
   private final String secretAccessKey;
-  private final List<String> permissions;
+  private final String sessionPolicy;
 
   public STSTokenRequest(String originalAccessKeyId,
                          String roleArn,
                          String tempAccessKeyId,
                          int durationSeconds,
-                         final String secretAccessKey,
-                         List<String> permissions) {
+                         String secretAccessKey,
+                         String sessionPolicy) {
     this.originalAccessKeyId = originalAccessKeyId;
     this.roleArn = roleArn;
     this.tempAccessKeyId = tempAccessKeyId;
     this.durationSeconds = durationSeconds;
     this.secretAccessKey = secretAccessKey;
-    this.permissions = permissions;
+    this.sessionPolicy = sessionPolicy;
   }
 
   public String getOriginalAccessKeyId() {
@@ -64,7 +65,7 @@ public class STSTokenRequest {
     return secretAccessKey;
   }
 
-  public List<String> getPermissions() {
-    return permissions;
+  public String getSessionPolicy() {
+    return sessionPolicy;
   }
 }

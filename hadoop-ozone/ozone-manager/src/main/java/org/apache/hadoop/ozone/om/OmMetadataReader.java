@@ -54,6 +54,7 @@ import org.apache.hadoop.ozone.om.helpers.OzoneFileStatus;
 import org.apache.hadoop.ozone.om.helpers.OzoneFileStatusLight;
 import org.apache.hadoop.ozone.om.helpers.S3VolumeContext;
 import org.apache.hadoop.ozone.om.protocolPB.grpc.GrpcClientConstants;
+import org.apache.hadoop.ozone.security.STSTokenIdentifier;
 import org.apache.hadoop.ozone.security.acl.IAccessAuthorizer;
 import org.apache.hadoop.ozone.security.acl.IAccessAuthorizer.ACLIdentityType;
 import org.apache.hadoop.ozone.security.acl.IAccessAuthorizer.ACLType;
@@ -555,7 +556,7 @@ public class OmMetadataReader implements IOmMetadataReader, Auditor {
   public boolean checkAcls(ResourceType resType, StoreType storeType,
       ACLType aclType, String vol, String bucket, String key,
       UserGroupInformation ugi, InetAddress remoteAddress, String hostName,
-      boolean throwIfPermissionDenied, String owner)
+      String sessionPolicy, boolean throwIfPermissionDenied, String owner)
       throws OMException {
     OzoneObj obj = OzoneObjInfo.Builder.newBuilder()
         .setResType(resType)
@@ -570,6 +571,7 @@ public class OmMetadataReader implements IOmMetadataReader, Auditor {
         .setAclType(ACLIdentityType.USER)
         .setAclRights(aclType)
         .setOwnerName(owner)
+        .setSessionPolicy(sessionPolicy)
         .build();
 
     return checkAcls(obj, context, throwIfPermissionDenied);
@@ -584,9 +586,46 @@ public class OmMetadataReader implements IOmMetadataReader, Auditor {
    */
   public boolean checkAcls(OzoneObj obj, RequestContext context,
       boolean throwIfPermissionDenied) throws OMException {
+    // Attach session policy from thread-local STS token if not already set
+    RequestContext normalizedContext = context;
+    try {
+      if (context.getSessionPolicy() == null || context.getSessionPolicy().trim().isEmpty()) {
+        final STSTokenIdentifier id = OzoneManager.getStsTokenIdentifier();
+        if (id != null && id.getSessionPolicy() != null && !id.getSessionPolicy().trim().isEmpty()) {
+          normalizedContext = RequestContext.newBuilder()
+              .setHost(context.getHost())
+              .setIp(context.getIp())
+              .setClientUgi(context.getClientUgi())
+              .setServiceId(context.getServiceId())
+              .setAclType(context.getAclType())
+              .setAclRights(context.getAclRights())
+              .setOwnerName(context.getOwnerName())
+              .setRecursiveAccessCheck(context.isRecursiveAccessCheck())
+              .setSessionPolicy(id.getSessionPolicy())
+              .build();
+        }
+      }
+    } catch (Exception ignored) {
+      // If anything goes wrong obtaining session policy, fall back to original context
+    }
+
+    final RequestContext finalRequestContext = normalizedContext;
 
     if (!captureLatencyNs(perfMetrics::setCheckAccessLatencyNs,
-        () -> accessAuthorizer.checkAccess(obj, context))) {
+        () -> accessAuthorizer.checkAccess(obj, finalRequestContext))) {
+
+//    OzoneManagerProtocolProtos.S3Authentication s3Authentication = getS3Auth();
+//    final CheckedSupplier<Boolean, OMException> checkedSupplier =
+//        s3Authentication != null && s3Authentication.hasSessionToken() ?
+//            () -> accessAuthorizer.checkAccess2(null, true, obj, context) :
+//            () -> accessAuthorizer.checkAccess(obj, context);
+
+//    final OzoneManagerProtocolProtos.S3Authentication s3Authentication = getS3Auth();
+//    final RequestContext normalizedContext = s3Authentication != null && s3Authentication.hasSessionToken() ?
+//        new RequestContext() :
+//        context;
+//    if (!captureLatencyNs(perfMetrics::setCheckAccessLatencyNs,
+//        () -> accessAuthorizer.checkAccess(obj, normalizedContext))) {
       if (throwIfPermissionDenied) {
         String volumeName = obj.getVolumeName() != null ?
                 "Volume:" + obj.getVolumeName() + " " : "";
@@ -595,11 +634,11 @@ public class OmMetadataReader implements IOmMetadataReader, Auditor {
         String keyName = obj.getKeyName() != null ?
                 "Key:" + obj.getKeyName() : "";
         log.warn("User {} doesn't have {} permission to access {} {}{}{}",
-            context.getClientUgi().getShortUserName(), context.getAclRights(),
+            normalizedContext.getClientUgi().getShortUserName(), normalizedContext.getAclRights(),
             obj.getResourceType(), volumeName, bucketName, keyName);
         throw new OMException(
-            "User " + context.getClientUgi().getShortUserName() +
-            " doesn't have " + context.getAclRights() +
+            "User " + normalizedContext.getClientUgi().getShortUserName() +
+            " doesn't have " + normalizedContext.getAclRights() +
             " permission to access " + obj.getResourceType() + " " +
             volumeName  + bucketName + keyName, ResultCodes.PERMISSION_DENIED);
       }

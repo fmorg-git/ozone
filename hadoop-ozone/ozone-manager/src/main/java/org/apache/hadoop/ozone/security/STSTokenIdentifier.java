@@ -53,6 +53,7 @@ public class STSTokenIdentifier extends ShortLivedTokenIdentifier {
   private String roleArn;
   private String originalAccessKeyId;
   private String secretAccessKey;
+  private String sessionPolicy;
   
   // Encryption key derived from ManagedSecretKey for this token
   private transient byte[] encryptionKey;
@@ -85,18 +86,22 @@ public class STSTokenIdentifier extends ShortLivedTokenIdentifier {
    * @param expiry              the token expiration time
    * @param secretAccessKey     the secret access key associated with the temporary access key ID
    * @param encryptionKey       the key bytes for encrypting sensitive fields
+   * @param sessionPolicy       an optional opaque identifier that further limits the scope of
+   *                            the permissions granted by the role
    */
   public STSTokenIdentifier(String tempAccessKeyId,
                             String originalAccessKeyId,
                             String roleArn,
                             Instant expiry,
                             String secretAccessKey,
-                            byte[] encryptionKey) {
+                            byte[] encryptionKey,
+                            String sessionPolicy) {
     super(tempAccessKeyId, expiry);
     this.originalAccessKeyId = originalAccessKeyId;
     this.roleArn = roleArn;
     this.secretAccessKey = secretAccessKey;
     this.encryptionKey = encryptionKey != null ? encryptionKey.clone() : null;
+    this.sessionPolicy = sessionPolicy;
   }
 
   @Override
@@ -138,7 +143,8 @@ public class STSTokenIdentifier extends ShortLivedTokenIdentifier {
         .setAccessKeyId(getOwnerId() != null ? getOwnerId() : "")
         .setOriginalAccessKeyId(originalAccessKeyId)
         .setRoleArn(roleArn != null ? roleArn : "")
-        .setSecretAccessKey(getOrEncryptSecretAccessKey());
+        .setSecretAccessKey(getOrEncryptSecretAccessKey())
+        .setSessionPolicy(sessionPolicy != null ? sessionPolicy : "");
 
     if (getSecretKeyId() != null) {
       builder.setSecretKeyId(getSecretKeyId().toString());
@@ -181,6 +187,10 @@ public class STSTokenIdentifier extends ShortLivedTokenIdentifier {
         throw new IllegalArgumentException("Invalid secretKeyId format in STS token: " + 
             token.getSecretKeyId(), e);
       }
+    }
+
+    if (token.hasSessionPolicy()) {
+      this.sessionPolicy = token.getSessionPolicy();
     }
   }
 
@@ -272,6 +282,13 @@ public class STSTokenIdentifier extends ShortLivedTokenIdentifier {
     return getOwnerId();
   }
 
+  /**
+   * Optional session policy associated with this STS token, or null/empty if none.
+   */
+  public String getSessionPolicy() {
+    return sessionPolicy;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -287,7 +304,8 @@ public class STSTokenIdentifier extends ShortLivedTokenIdentifier {
     final STSTokenIdentifier that = (STSTokenIdentifier) o;
     return Objects.equals(roleArn, that.roleArn) &&
         Objects.equals(secretAccessKey, that.secretAccessKey) &&
-        Objects.equals(originalAccessKeyId, that.originalAccessKeyId);
+        Objects.equals(originalAccessKeyId, that.originalAccessKeyId) &&
+        Objects.equals(sessionPolicy, that.sessionPolicy);
   }
 
   @Override
@@ -295,7 +313,8 @@ public class STSTokenIdentifier extends ShortLivedTokenIdentifier {
     return Objects.hash(super.hashCode(),
         roleArn,
         secretAccessKey,
-        originalAccessKeyId
+        originalAccessKeyId,
+        sessionPolicy
     );
   }
 
@@ -307,6 +326,7 @@ public class STSTokenIdentifier extends ShortLivedTokenIdentifier {
         ", roleArn=" + roleArn +
         ", expiry=" + getExpiry() +
         ", secretKeyId=" + getSecretKeyId() +
+        ", sessionPolicy=" + sessionPolicy +
         '}';
   }
 }

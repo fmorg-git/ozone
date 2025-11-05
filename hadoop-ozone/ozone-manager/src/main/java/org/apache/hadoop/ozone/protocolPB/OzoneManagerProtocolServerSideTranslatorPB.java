@@ -149,6 +149,19 @@ public class OzoneManagerProtocolServerSideTranslatorPB implements OzoneManagerP
           // If request has S3Authentication, validate S3 credentials.
           // If current OM is leader and then proceed with the request.
           S3SecurityUtil.validateS3Credential(request, ozoneManager);
+          // If STS session token is present, decode it once and stash in thread-local
+          if (request.getS3Authentication().hasSessionToken()) {
+            final String token = request.getS3Authentication().getSessionToken();
+            if (token != null && !token.isEmpty()) {
+              try {
+                final org.apache.hadoop.ozone.security.STSTokenIdentifier id =
+                    org.apache.hadoop.ozone.security.STSSecurityUtil.constructSTSToken(token);
+                OzoneManager.setStsTokenIdentifier(id);
+              } catch (Exception ignored) {
+                // Do not set thread-local if token cannot be decoded
+              }
+            }
+          }
         } catch (IOException ex) {
           return createErrorResponse(request, ex);
         }
@@ -174,6 +187,7 @@ public class OzoneManagerProtocolServerSideTranslatorPB implements OzoneManagerP
       return ozoneManager.getOmExecutionFlow().submit(request);
     } finally {
       OzoneManager.setS3Auth(null);
+      OzoneManager.setStsTokenIdentifier(null);
     }
   }
 

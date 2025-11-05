@@ -43,14 +43,17 @@ public interface OzoneManagerClientProtocol extends OzoneManagerProtocol {
 
   /**
    * Generate an STS token for AssumeRole operation.
-   * @param roleArn The ARN of the role to assume
-   * @param roleSessionName The session name for the role
-   * @param durationSeconds The duration in seconds for the token validity
-   * @return STSTokenResponse containing temporary credentials
+   *
+   * @param roleArn             The ARN of the role to assume
+   * @param roleSessionName     The session name for the role
+   * @param durationSeconds     The duration in seconds for the token validity
+   * @param awsIamSessionPolicy The IAM session policy JSON
+   * @return AssumeRoleResponse containing temporary credentials
    * @throws IOException if any problem occurs while assuming the role
    */
   OzoneManagerProtocolProtos.AssumeRoleResponse assumeRole(String roleArn,
                                                            String roleSessionName,
-                                                           int durationSeconds)
+                                                           int durationSeconds,
+                                                           String awsIamSessionPolicy)
       throws IOException;
 }

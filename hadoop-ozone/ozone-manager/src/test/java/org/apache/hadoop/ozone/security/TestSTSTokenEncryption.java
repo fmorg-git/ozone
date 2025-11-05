@@ -67,6 +67,7 @@ public class TestSTSTokenEncryption {
     final String secretAccessKey = "mySecretAccessKey123456";
     // Use millisecond precision to match serialization format
     final Instant expiry = Instant.ofEpochMilli(Instant.now().plusSeconds(3600).toEpochMilli());
+    final String sessionPolicy = "test-session-policy";
     
     // Create token identifier with encryption
     final STSTokenIdentifier tokenId = new STSTokenIdentifier(
@@ -75,7 +76,8 @@ public class TestSTSTokenEncryption {
         roleArn,
         expiry,
         secretAccessKey,
-        keyBytes
+        keyBytes,
+        sessionPolicy
     );
     
     // Convert to protobuf (should encrypt sensitive fields)

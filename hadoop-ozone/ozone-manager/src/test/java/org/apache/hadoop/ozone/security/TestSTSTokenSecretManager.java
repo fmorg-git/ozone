@@ -28,7 +28,6 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Collections;
 import java.util.UUID;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
@@ -74,12 +73,14 @@ public class TestSTSTokenSecretManager {
     final String roleArn = "arn:aws:iam::123456789012:role/test-role";
     final int durationSeconds = 4000;
     final String secretAccessKey = "test-secret-access-key";
+    final String sessionPolicy = "test-session-policy";
 
     final STSTokenIdentifier identifier = secretManager.createIdentifier(tempAccessKeyId,
         originalAccessKeyId,
         roleArn,
         durationSeconds,
-        secretAccessKey
+        secretAccessKey,
+        sessionPolicy
     );
 
     assertNotNull(identifier);
@@ -97,12 +98,14 @@ public class TestSTSTokenSecretManager {
     final String roleArn = "arn:aws:iam::123456789012:role/test-role";
     final int durationSeconds = 4000;
     final String secretAccessKey = "test-secret-access-key";
+    final String sessionPolicy = "test-session-policy";
 
     final Token<STSTokenIdentifier> token = secretManager.generateToken(tempAccessKeyId,
         originalAccessKeyId,
         roleArn,
         durationSeconds,
-        secretAccessKey
+        secretAccessKey,
+        sessionPolicy
     );
 
     assertNotNull(token);
@@ -119,7 +122,7 @@ public class TestSTSTokenSecretManager {
         "temp-access-key",
             3600,
         "test-secret-access-key",
-        Collections.singletonList("s3:GetObject"));
+        "test-session-policy");
 
     final Token<STSTokenIdentifier> token = secretManager.generateToken(request);
 
@@ -139,7 +142,8 @@ public class TestSTSTokenSecretManager {
         "originalAccessKeyId",
         "roleArn",
         1,
-        "test-secret-access-key"
+        "test-secret-access-key",
+        "test-session-policy"
     );
 
     // Should not be expired immediately

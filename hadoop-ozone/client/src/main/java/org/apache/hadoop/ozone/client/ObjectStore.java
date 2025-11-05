@@ -106,8 +106,9 @@ public class ObjectStore {
 
   public OzoneManagerProtocolProtos.AssumeRoleResponse assumeRole(String roleArn,
                                                                   String roleSessionName,
-                                                                  int durationSeconds) throws IOException {
-    return proxy.assumeRole(roleArn, roleSessionName, durationSeconds);
+                                                                  int durationSeconds,
+                                                                  String awsIamSessionPolicy) throws IOException {
+    return proxy.assumeRole(roleArn, roleSessionName, durationSeconds, awsIamSessionPolicy);
   }
 
   /**

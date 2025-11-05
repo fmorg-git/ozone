@@ -1508,6 +1508,7 @@ message OMTokenProto {
     optional string roleArn        = 17;
     optional string originalAccessKeyId = 18;
     optional string secretAccessKey     = 19;
+    optional string sessionPolicy       = 20;
 }
 
 message SecretKeyProto {
@@ -2400,6 +2401,7 @@ message AssumeRoleRequest {
     required string roleArn = 1;
     required string roleSessionName = 2;
     optional int32 durationSeconds = 3 [default = 3600];
+    optional string awsIamPolicy = 4;
 }
 
 message AssumeRoleResponse {

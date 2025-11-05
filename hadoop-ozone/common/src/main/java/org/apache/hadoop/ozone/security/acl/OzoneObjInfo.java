@@ -19,6 +19,7 @@ package org.apache.hadoop.ozone.security.acl;
 
 import static org.apache.hadoop.ozone.OzoneConsts.OZONE_URI_DELIMITER;
 
+import java.util.Objects;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.ozone.om.helpers.OmKeyArgs;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos;
@@ -49,8 +50,8 @@ public final class OzoneObjInfo extends OzoneObj {
    * @param name - keyName/PrefixName
    */
   private OzoneObjInfo(ResourceType resType, StoreType storeType,
-      String volumeName, String bucketName, String name,
-      OzonePrefixPath ozonePrefixPath) {
+                       String volumeName, String bucketName, String name,
+                       OzonePrefixPath ozonePrefixPath) {
     super(resType, storeType);
     this.volumeName = volumeName;
     this.bucketName = bucketName;
@@ -76,7 +77,7 @@ public final class OzoneObjInfo extends OzoneObj {
           + OZONE_URI_DELIMITER + getPrefixName();
     default:
       throw new IllegalArgumentException("Unknown resource " +
-        "type" + getResourceType());
+          "type" + getResourceType());
     }
   }
 
@@ -106,7 +107,7 @@ public final class OzoneObjInfo extends OzoneObj {
   }
 
   public static OzoneObjInfo fromProtobuf(OzoneManagerProtocolProtos.OzoneObj
-      proto) {
+                                              proto) {
     Builder builder = new Builder()
         .setResType(ResourceType.valueOf(proto.getResType().name()))
         .setStoreType(StoreType.valueOf(proto.getStoreType().name()));
@@ -170,7 +171,7 @@ public final class OzoneObjInfo extends OzoneObj {
     }
 
     public static Builder getBuilder(ResourceType resType,
-        StoreType storeType, String vol, String bucket, String key) {
+                                     StoreType storeType, String vol, String bucket, String key) {
       return OzoneObjInfo.Builder.newBuilder()
           .setResType(resType)
           .setStoreType(storeType)
@@ -236,5 +237,26 @@ public final class OzoneObjInfo extends OzoneObj {
       return new OzoneObjInfo(resType, storeType, volumeName, bucketName,
           name, ozonePrefixPath);
     }
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    } else if (!super.equals(o)) {
+      return false;
+    }
+
+    final OzoneObjInfo that = (OzoneObjInfo) o;
+
+    return Objects.equals(volumeName, that.volumeName) &&
+        Objects.equals(bucketName, that.bucketName) &&
+        Objects.equals(name, that.name) &&
+        Objects.equals(ozonePrefixPath, that.ozonePrefixPath);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(super.hashCode(), volumeName, bucketName, name, ozonePrefixPath);
   }
 }

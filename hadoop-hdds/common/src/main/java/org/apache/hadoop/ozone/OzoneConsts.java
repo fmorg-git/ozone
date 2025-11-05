@@ -65,6 +65,7 @@ public final class OzoneConsts {
   public static final String OZONE_ACL_CREATE = "c";
   public static final String OZONE_ACL_READ_ACL = "x";
   public static final String OZONE_ACL_WRITE_ACL = "y";
+  public static final String OZONE_ACL_ASSUME_ROLE = "m";
 
   public static final String OZONE_DATE_FORMAT =
       "EEE, dd MMM yyyy HH:mm:ss zzz";
@@ -288,8 +289,6 @@ public final class OzoneConsts {
   public static final String S3_GETSECRET_USER = "S3GetSecretUser";
   public static final String S3_SETSECRET_USER = "S3SetSecretUser";
   public static final String S3_REVOKESECRET_USER = "S3RevokeSecretUser";
-  public static final String S3_GETTEMPORARYSECRET_USER = "S3GetTemporarySecretUser";
-  public static final String S3_REVOKETEMPORARYSECRET_USER = "S3RevokeTemporarySecretUser";
   public static final String RENAMED_KEYS_MAP = "renamedKeysMap";
   public static final String UNRENAMED_KEYS_MAP = "unRenamedKeysMap";
   public static final String MULTIPART_UPLOAD_PART_NUMBER = "partNumber";
