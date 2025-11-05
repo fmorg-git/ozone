@@ -160,9 +160,9 @@ public class S3AssumeRoleRequest extends OMClientRequest {
 
       // Generate the session token
       final STSTokenSecretManager stsTokenSecretManager = ozoneManager.getSTSTokenSecretManager();
-      final String sessionToken = stsTokenSecretManager.createSTSTokenString(originalAccessKeyId,
+      final String sessionToken = stsTokenSecretManager.createSTSTokenString(tempAccessKeyId,
+          originalAccessKeyId,
           roleArn,
-          tempAccessKeyId,
           durationSeconds,
           secretAccessKey,
           sessionPolicy
