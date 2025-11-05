@@ -24,7 +24,6 @@ import org.apache.hadoop.hdds.annotation.InterfaceStability;
 import org.apache.hadoop.hdds.security.symmetric.ManagedSecretKey;
 import org.apache.hadoop.hdds.security.symmetric.SecretKeySignerClient;
 import org.apache.hadoop.hdds.security.token.ShortLivedTokenSecretManager;
-import org.apache.hadoop.ozone.om.request.s3.security.STSTokenRequest;
 import org.apache.hadoop.security.token.Token;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,8 +89,7 @@ public class STSTokenSecretManager extends ShortLivedTokenSecretManager<STSToken
   }
 
   /**
-   * Generate an STS token for the specified parameters.
-   * The token will have sensitive fields encrypted using HKDF-derived AES keys.
+   * Create an STS token and return it as an encoded string.
    *
    * @param tempAccessKeyId     the temporary access key ID
    * @param originalAccessKeyId the original long-lived access key ID
@@ -100,15 +98,14 @@ public class STSTokenSecretManager extends ShortLivedTokenSecretManager<STSToken
    * @param secretAccessKey     the secret access key associated with the temporary access key ID
    * @param sessionPolicy       an optional opaque identifier that further limits the scope of
    *                            the permissions granted by the role
-   * @return signed STS token with encrypted sensitive fields
+   * @return base64 encoded token string
    */
-  public Token<STSTokenIdentifier> generateToken(String tempAccessKeyId,
-                                                 String originalAccessKeyId,
-                                                 String roleArn,
-                                                 int durationSeconds,
-                                                 String secretAccessKey,
-                                                 String sessionPolicy) {
-
+  public String createSTSTokenString(String tempAccessKeyId,
+                                     String originalAccessKeyId,
+                                     String roleArn,
+                                     int durationSeconds,
+                                     String secretAccessKey,
+                                     String sessionPolicy) throws IOException {
     final STSTokenIdentifier identifier = createIdentifier(tempAccessKeyId,
         originalAccessKeyId,
         roleArn,
@@ -116,40 +113,12 @@ public class STSTokenSecretManager extends ShortLivedTokenSecretManager<STSToken
         secretAccessKey,
         sessionPolicy
     );
-    
+
     LOG.info("[FM] Generated STS token -> tempAccessKeyId: {}, originalAccessKeyId: {}, " +
-          "roleArn: {}, expiration: {}, sessionPolicy: {}",
-          tempAccessKeyId, originalAccessKeyId, roleArn, identifier.getExpiry(), sessionPolicy);
-    
-    return generateToken(identifier);
-  }
+            "roleArn: {}, expiration: {}, sessionPolicy: {}",
+        tempAccessKeyId, originalAccessKeyId, roleArn, identifier.getExpiry(), sessionPolicy);
 
-  /**
-   * Generate an STS token from a request object.
-   * This method provides compatibility with existing STSTokenManager usage.
-   *
-   * @param request the STS token request
-   * @return signed STS token
-   */
-  public Token<STSTokenIdentifier> generateToken(STSTokenRequest request) {
-    return generateToken(
-        request.getTempAccessKeyId(),
-        request.getOriginalAccessKeyId(),
-        request.getRoleArn(),
-        request.getDurationSeconds(),
-        request.getSecretAccessKey(),
-        request.getSessionPolicy()
-    );
-  }
-
-  /**
-   * Create an STS token and return it as an encoded string.
-   *
-   * @param request the STS token request
-   * @return base64 encoded token string
-   */
-  public String createSTSTokenString(STSTokenRequest request) throws IOException {
-    final Token<STSTokenIdentifier> token = generateToken(request);
+    final Token<STSTokenIdentifier> token = generateToken(identifier);
     return token.encodeToUrlString();
   }
 }

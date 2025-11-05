@@ -24,6 +24,7 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.Set;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hdds.scm.client.HddsClientUtils;
 import org.apache.hadoop.ipc.ProtobufRpcEngine;
 import org.apache.hadoop.ozone.om.OzoneManager;
@@ -157,17 +158,15 @@ public class S3AssumeRoleRequest extends OMClientRequest {
               targetRoleName
           );
 
-      // Create STS token request and generate the session token
-      final STSTokenRequest tokenRequest = new STSTokenRequest(
-          originalAccessKeyId,
+      // Generate the session token
+      final STSTokenSecretManager stsTokenSecretManager = ozoneManager.getSTSTokenSecretManager();
+      final String sessionToken = stsTokenSecretManager.createSTSTokenString(originalAccessKeyId,
           roleArn,
           tempAccessKeyId,
           durationSeconds,
           secretAccessKey,
           sessionPolicy
       );
-      final STSTokenSecretManager stsTokenSecretManager = ozoneManager.getSTSTokenSecretManager();
-      final String sessionToken = stsTokenSecretManager.createSTSTokenString(tokenRequest);
 
       // Generate AssumedRoleId
       final String roleId = "AROA" + generateRandomAlphanumeric(16);
@@ -220,7 +219,7 @@ public class S3AssumeRoleRequest extends OMClientRequest {
     }
 
     final Set<org.apache.hadoop.ozone.security.acl.AssumeRoleRequest.OzoneGrant> grants =
-        awsIamPolicy == null || awsIamPolicy.isBlank() ?
+        StringUtils.isBlank(awsIamPolicy) ?
             null :
             IamSessionPolicyResolver.resolve(awsIamPolicy,
                 volumeName,

@@ -33,8 +33,6 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import org.apache.hadoop.hdds.security.symmetric.ManagedSecretKey;
 import org.apache.hadoop.hdds.security.symmetric.SecretKeySignerClient;
-import org.apache.hadoop.ozone.om.request.s3.security.STSTokenRequest;
-import org.apache.hadoop.security.token.Token;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -92,42 +90,14 @@ public class TestSTSTokenSecretManager {
   }
 
   @Test
-  public void testGenerateToken() {
-    final String tempAccessKeyId = "temp-access-key";
-    final String originalAccessKeyId = "original-access-key";
-    final String roleArn = "arn:aws:iam::123456789012:role/test-role";
-    final int durationSeconds = 4000;
-    final String secretAccessKey = "test-secret-access-key";
-    final String sessionPolicy = "test-session-policy";
-
-    final Token<STSTokenIdentifier> token = secretManager.generateToken(tempAccessKeyId,
-        originalAccessKeyId,
-        roleArn,
-        durationSeconds,
-        secretAccessKey,
-        sessionPolicy
-    );
-
-    assertNotNull(token);
-    assertNotNull(token.getIdentifier());
-    assertNotNull(token.getPassword());
-    assertEquals("STSToken", token.getKind().toString());
-  }
-
-  @Test
   public void testGenerateTokenFromRequest() throws IOException {
-    final STSTokenRequest request = new STSTokenRequest(
-            "original-access-key",
-            "arn:aws:iam::123456789012:role/test-role",
+    final String tokenString = secretManager.createSTSTokenString("original-access-key",
+        "arn:aws:iam::123456789012:role/test-role",
         "temp-access-key",
-            3600,
+        3600,
         "test-secret-access-key",
-        "test-session-policy");
-
-    final Token<STSTokenIdentifier> token = secretManager.generateToken(request);
-
-    assertNotNull(token);
-    final String tokenString = secretManager.createSTSTokenString(request);
+        "test-session-policy"
+    );
     assertNotNull(tokenString);
     assertFalse(tokenString.isEmpty());
   }
