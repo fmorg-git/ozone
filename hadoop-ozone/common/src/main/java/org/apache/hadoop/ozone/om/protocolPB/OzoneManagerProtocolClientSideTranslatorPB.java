@@ -53,6 +53,7 @@ import org.apache.hadoop.ipc.CallerContext;
 import org.apache.hadoop.ozone.ClientVersion;
 import org.apache.hadoop.ozone.OzoneAcl;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
+import org.apache.hadoop.ozone.om.helpers.AssumeRoleResponseInfo;
 import org.apache.hadoop.ozone.om.helpers.BasicOmKeyInfo;
 import org.apache.hadoop.ozone.om.helpers.DBUpdates;
 import org.apache.hadoop.ozone.om.helpers.DeleteTenantState;
@@ -2683,10 +2684,10 @@ public final class OzoneManagerProtocolClientSideTranslatorPB
   }
 
   @Override
-  public OzoneManagerProtocolProtos.AssumeRoleResponse assumeRole(String roleArn,
-                                                                  String roleSessionName,
-                                                                  int durationSeconds,
-                                                                  String awsIamSessionPolicy)
+  public AssumeRoleResponseInfo assumeRole(String roleArn,
+                                           String roleSessionName,
+                                           int durationSeconds,
+                                           String awsIamSessionPolicy)
       throws IOException {
     OzoneManagerProtocolProtos.AssumeRoleRequest.Builder req =
         OzoneManagerProtocolProtos.AssumeRoleRequest.newBuilder()
@@ -2699,6 +2700,7 @@ public final class OzoneManagerProtocolClientSideTranslatorPB
         .setAssumeRoleRequest(req)
         .build();
 
-    return handleError(submitRequest(omRequest)).getAssumeRoleResponse();
+    return AssumeRoleResponseInfo.fromProtobuf(
+        handleError(submitRequest(omRequest)).getAssumeRoleResponse());
   }
 }

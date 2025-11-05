@@ -124,6 +124,7 @@ import org.apache.hadoop.ozone.client.io.OzoneOutputStream;
 import org.apache.hadoop.ozone.client.protocol.ClientProtocol;
 import org.apache.hadoop.ozone.om.OmConfig;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
+import org.apache.hadoop.ozone.om.helpers.AssumeRoleResponseInfo;
 import org.apache.hadoop.ozone.om.helpers.BasicOmKeyInfo;
 import org.apache.hadoop.ozone.om.helpers.BucketEncryptionKeyInfo;
 import org.apache.hadoop.ozone.om.helpers.BucketLayout;
@@ -166,7 +167,6 @@ import org.apache.hadoop.ozone.om.protocolPB.OmTransport;
 import org.apache.hadoop.ozone.om.protocolPB.OmTransportFactory;
 import org.apache.hadoop.ozone.om.protocolPB.OzoneManagerClientProtocol;
 import org.apache.hadoop.ozone.om.protocolPB.OzoneManagerProtocolClientSideTranslatorPB;
-import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMRoleInfo;
 import org.apache.hadoop.ozone.security.GDPRSymmetricKey;
 import org.apache.hadoop.ozone.security.OzoneTokenIdentifier;
@@ -2812,10 +2812,10 @@ public class RpcClient implements ClientProtocol {
   }
 
   @Override
-  public OzoneManagerProtocolProtos.AssumeRoleResponse assumeRole(String roleArn,
-                                                                  String roleSessionName,
-                                                                  int durationSeconds,
-                                                                  String awsIamSessionPolicy)
+  public AssumeRoleResponseInfo assumeRole(String roleArn,
+                                           String roleSessionName,
+                                           int durationSeconds,
+                                           String awsIamSessionPolicy)
       throws IOException {
     return ozoneManagerClient.assumeRole(roleArn, roleSessionName, durationSeconds, awsIamSessionPolicy);
   }

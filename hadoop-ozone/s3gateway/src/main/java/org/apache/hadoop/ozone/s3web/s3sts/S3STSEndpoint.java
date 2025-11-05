@@ -32,7 +32,7 @@ import javax.ws.rs.core.Response;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
-import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos;
+import org.apache.hadoop.ozone.om.helpers.AssumeRoleResponseInfo;
 import org.apache.hadoop.ozone.s3.exception.OS3Exception;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -242,7 +242,7 @@ public class S3STSEndpoint extends S3STSEndpointBase {
       throws IOException {
     try {
       // Call object store directly for assumeRole
-      OzoneManagerProtocolProtos.AssumeRoleResponse stsResponse =
+      AssumeRoleResponseInfo stsResponse =
           getClient().getObjectStore().assumeRole(roleArn, roleSessionName, duration, awsIamSessionPolicy);
 
       S3AssumeRoleResponseXml response = new S3AssumeRoleResponseXml();

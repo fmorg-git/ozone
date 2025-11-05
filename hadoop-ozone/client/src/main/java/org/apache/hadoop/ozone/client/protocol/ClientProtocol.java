@@ -46,6 +46,7 @@ import org.apache.hadoop.ozone.client.io.OzoneInputStream;
 import org.apache.hadoop.ozone.client.io.OzoneOutputStream;
 import org.apache.hadoop.ozone.om.OMConfigKeys;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
+import org.apache.hadoop.ozone.om.helpers.AssumeRoleResponseInfo;
 import org.apache.hadoop.ozone.om.helpers.DeleteTenantState;
 import org.apache.hadoop.ozone.om.helpers.ErrorInfo;
 import org.apache.hadoop.ozone.om.helpers.LeaseKeyInfo;
@@ -65,7 +66,6 @@ import org.apache.hadoop.ozone.om.helpers.TenantUserInfoValue;
 import org.apache.hadoop.ozone.om.helpers.TenantUserList;
 import org.apache.hadoop.ozone.om.protocol.OzoneManagerProtocol;
 import org.apache.hadoop.ozone.om.protocol.S3Auth;
-import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMRoleInfo;
 import org.apache.hadoop.ozone.security.OzoneTokenIdentifier;
 import org.apache.hadoop.ozone.security.acl.OzoneObj;
@@ -1386,13 +1386,13 @@ public interface ClientProtocol {
    * @param roleSessionName     The session name for the role
    * @param durationSeconds     The duration in seconds for the token validity
    * @param awsIamSessionPolicy The IAM JSON session policy
-   * @return AssumeRoleResponse containing temporary credentials
+   * @return AssumeRoleValue containing temporary credentials
    * @throws IOException if an error occurs during the assumeRole operation
    */
-  OzoneManagerProtocolProtos.AssumeRoleResponse assumeRole(String roleArn,
-                                                           String roleSessionName,
-                                                           int durationSeconds,
-                                                           String awsIamSessionPolicy)
+  AssumeRoleResponseInfo assumeRole(String roleArn,
+                                    String roleSessionName,
+                                    int durationSeconds,
+                                    String awsIamSessionPolicy)
       throws IOException;
 
 }

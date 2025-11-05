@@ -29,6 +29,7 @@ import org.apache.hadoop.ozone.OzoneAcl;
 import org.apache.hadoop.ozone.om.IOmMetadataReader;
 import org.apache.hadoop.ozone.om.OMConfigKeys;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
+import org.apache.hadoop.ozone.om.helpers.AssumeRoleResponseInfo;
 import org.apache.hadoop.ozone.om.helpers.DBUpdates;
 import org.apache.hadoop.ozone.om.helpers.DeleteTenantState;
 import org.apache.hadoop.ozone.om.helpers.ErrorInfo;
@@ -1198,4 +1199,22 @@ public interface OzoneManagerProtocol
    * @throws IOException
    */
   void startQuotaRepair(List<String> buckets) throws IOException;
+
+  /**
+   * Generate an STS token for AssumeRole operation.
+   *
+   * @param roleArn                   The ARN of the role to assume
+   * @param roleSessionName           The session name for the role
+   * @param durationSeconds           The duration in seconds for the token validity
+   * @param awsIamSessionPolicy       The IAM session policy JSON
+   * @return AssumeRoleResponseInfo   The AssumeRole response information containing temporary credentials
+   * @throws IOException if any problem occurs while assuming the role
+   */
+  default AssumeRoleResponseInfo assumeRole(String roleArn,
+                                            String roleSessionName,
+                                            int durationSeconds,
+                                            String awsIamSessionPolicy) throws IOException {
+    throw new UnsupportedOperationException("OzoneManager does not require " +
+        "this to be implemented");
+  }
 }

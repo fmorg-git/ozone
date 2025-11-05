@@ -36,6 +36,7 @@ import org.apache.hadoop.ozone.OzoneConfigKeys;
 import org.apache.hadoop.ozone.OzoneFsServerDefaults;
 import org.apache.hadoop.ozone.client.protocol.ClientProtocol;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
+import org.apache.hadoop.ozone.om.helpers.AssumeRoleResponseInfo;
 import org.apache.hadoop.ozone.om.helpers.BucketLayout;
 import org.apache.hadoop.ozone.om.helpers.DeleteTenantState;
 import org.apache.hadoop.ozone.om.helpers.OmVolumeArgs;
@@ -45,7 +46,6 @@ import org.apache.hadoop.ozone.om.helpers.S3VolumeContext;
 import org.apache.hadoop.ozone.om.helpers.TenantStateList;
 import org.apache.hadoop.ozone.om.helpers.TenantUserInfoValue;
 import org.apache.hadoop.ozone.om.helpers.TenantUserList;
-import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos;
 import org.apache.hadoop.ozone.security.OzoneTokenIdentifier;
 import org.apache.hadoop.ozone.security.acl.OzoneObj;
 import org.apache.hadoop.ozone.snapshot.CancelSnapshotDiffResponse;
@@ -104,10 +104,10 @@ public class ObjectStore {
     return proxy;
   }
 
-  public OzoneManagerProtocolProtos.AssumeRoleResponse assumeRole(String roleArn,
-                                                                  String roleSessionName,
-                                                                  int durationSeconds,
-                                                                  String awsIamSessionPolicy) throws IOException {
+  public AssumeRoleResponseInfo assumeRole(String roleArn,
+                                           String roleSessionName,
+                                           int durationSeconds,
+                                           String awsIamSessionPolicy) throws IOException {
     return proxy.assumeRole(roleArn, roleSessionName, durationSeconds, awsIamSessionPolicy);
   }
 
