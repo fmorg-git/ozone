@@ -173,6 +173,12 @@ public abstract class OMClientRequest implements RequestAuditor {
       // Validate and extract caller principal from STS session token if it
       // was provided. Perform a few sanity-checks before we trust its
       // contents.
+      final String accessKeyId = omRequest.getS3Authentication().getAccessId();
+      if (accessKeyId.startsWith("ASIA") && !omRequest.getS3Authentication().hasSessionToken()) {
+        throw new IOException("Error with STS token",
+            new AuthenticationException("Missing session token")
+        );
+      }
       if (omRequest.getS3Authentication().hasSessionToken()) {
         try {
           // Decode STS token using the new STSTokenIdentifier
