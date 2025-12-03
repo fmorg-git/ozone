@@ -33,6 +33,8 @@ import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMReque
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.OMResponse;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.RevokeS3TemporarySecretRequest;
 import org.apache.hadoop.ozone.security.STSSecurityUtil;
+import org.apache.hadoop.ozone.security.STSTokenIdentifier;
+import org.apache.hadoop.ozone.om.exceptions.OMException;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,8 +67,16 @@ public class S3RevokeTemporarySecretRequest extends OMClientRequest {
     // key (or an S3 / tenant admin) is allowed to revoke its temporary
     // STS credentials.
     final String sessionToken = revokeReq.getSessionToken();
-    final String originalAccessKeyId =
-        STSSecurityUtil.extractOriginalAccessKeyId(sessionToken);
+    final STSTokenIdentifier token = STSSecurityUtil.constructSTSToken(sessionToken);
+    final String originalAccessKeyId = token.getOriginalAccessKeyId();
+    final String tempAccessKeyId = token.getTempAccessKeyId();
+
+    // Validate that the Access Key ID in the request matches the one in the token
+    // to prevent users from revoking arbitrary keys using a valid token.
+    if (!tempAccessKeyId.equals(revokeReq.getAccessKeyId())) {
+      throw new OMException("Access Key ID in request does not match the session token",
+          OMException.ResultCodes.INVALID_REQUEST);
+    }
 
     final UserGroupInformation ugi =
         S3SecretRequestHelper.getOrCreateUgi(originalAccessKeyId);
@@ -118,5 +128,3 @@ public class S3RevokeTemporarySecretRequest extends OMClientRequest {
     return omClientResponse;
   }
 }
-
-

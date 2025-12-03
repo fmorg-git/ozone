@@ -350,6 +350,51 @@ public class TestS3RevokeTemporarySecretRequest {
   }
 
   /**
+   * Verify that if the request Access Key ID does not match the one inside
+   * the session token, the request is rejected. This prevents a user with
+   * a valid session token from revoking arbitrary keys.
+   */
+  @Test
+  public void testPreExecuteFailsForMismatchedAccessKeyId() throws Exception {
+    final String tempAccessKeyId = "ASIA_TEMP_ACCESS";
+    final String otherAccessKeyId = "ASIA_OTHER_ACCESS";
+    final String originalAccessKeyId = "original-access-id";
+
+    final String sessionToken =
+        createSessionToken(tempAccessKeyId, originalAccessKeyId);
+
+    // Caller IS the owner of the session token, so permissions would pass
+    final UserGroupInformation originalUgi =
+        UserGroupInformation.createRemoteUser(originalAccessKeyId);
+    Server.getCurCall().set(new StubCall(originalUgi));
+
+    final OzoneManager ozoneManager = mock(OzoneManager.class);
+    when(ozoneManager.isS3MultiTenancyEnabled()).thenReturn(false);
+    when(ozoneManager.isS3Admin(any(UserGroupInformation.class)))
+        .thenReturn(false);
+
+    // Request tries to revoke "ASIA_OTHER_ACCESS" using a token for "ASIA_TEMP_ACCESS"
+    final RevokeS3TemporarySecretRequest revokeProto =
+        RevokeS3TemporarySecretRequest.newBuilder()
+            .setAccessKeyId(otherAccessKeyId)
+            .setSessionToken(sessionToken)
+            .build();
+
+    final OMRequest omRequest = OMRequest.newBuilder()
+        .setClientId(UUID.randomUUID().toString())
+        .setCmdType(Type.RevokeS3TemporarySecret)
+        .setRevokeS3TemporarySecretRequest(revokeProto)
+        .build();
+
+    final OMClientRequest omClientRequest =
+        new S3RevokeTemporarySecretRequest(omRequest);
+
+    OMException ex = assertThrows(OMException.class,
+        () -> omClientRequest.preExecute(ozoneManager));
+    assertEquals(OMException.ResultCodes.INVALID_REQUEST, ex.getResult());
+  }
+
+  /**
    * Simple ExternalCall stub used to inject a remote user into the
    * ProtobufRpcEngine.Server.getRemoteUser() thread-local.
    */
@@ -367,5 +412,3 @@ public class TestS3RevokeTemporarySecretRequest {
     }
   }
 }
-
-
