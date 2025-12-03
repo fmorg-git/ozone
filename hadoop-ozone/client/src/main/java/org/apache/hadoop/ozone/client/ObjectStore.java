@@ -233,8 +233,8 @@ public class ObjectStore {
     return proxy.getS3TemporarySecret(accessKeyId);
   }
 
-  public void revokeS3TemporarySecret(String accessKeyId) throws IOException {
-    proxy.revokeS3TemporarySecret(accessKeyId);
+  public void revokeS3TemporarySecret(String accessKeyId, String sessionToken) throws IOException {
+    proxy.revokeS3TemporarySecret(accessKeyId, sessionToken);
   }
 
   /**

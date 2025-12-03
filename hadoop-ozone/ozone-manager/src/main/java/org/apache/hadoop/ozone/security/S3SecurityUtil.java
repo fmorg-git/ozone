@@ -23,7 +23,9 @@ import static org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.
 import com.google.protobuf.ServiceException;
 import org.apache.hadoop.hdds.annotation.InterfaceAudience;
 import org.apache.hadoop.hdds.annotation.InterfaceStability;
+import org.apache.hadoop.hdds.utils.db.Table;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.ozone.om.OMMetadataManager;
 import org.apache.hadoop.ozone.om.OzoneManager;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
 import org.apache.hadoop.ozone.om.exceptions.OMLeaderNotReadyException;
@@ -61,6 +63,16 @@ public final class S3SecurityUtil {
       if (omRequest.hasS3Authentication() && omRequest.getS3Authentication().hasSessionToken()) {
         LOG.info("[FM] S3 request has session token ");
         final String sessionToken = omRequest.getS3Authentication().getSessionToken();
+
+        // Best-effort revocation check based on the STS temporary access key
+        // ID. This uses RocksDB keyMayExist via Table#getIfExist under the
+        // hood for efficiency.
+        if (isRevokedStsTempAccessKey(sessionToken, ozoneManager)) {
+          LOG.info("[FM] Session token has been revoked: {}", sessionToken);
+          throw new OMException("STS token has been revoked",
+              INVALID_TOKEN);
+        }
+
         STSSecurityUtil.validateSTSToken(sessionToken, ozoneManager);
         // STS token validated
         LOG.info("[FM] S3 request session token successfully validated ");
@@ -96,6 +108,50 @@ public final class S3SecurityUtil {
             + " request authorization failure: signatures do NOT match",
             INVALID_TOKEN);
       }
+    }
+  }
+
+  /**
+   * Return true if the STS token's temporary access key ID is present in the
+   * revoked STS access key table.
+   *
+   * <p>This is a best-effort check: failures while decoding the token or
+   * accessing the table are logged and treated as "not revoked" so that
+   * normal validation (signature, expiry, etc.) can still proceed.</p>
+   */
+  private static boolean isRevokedStsTempAccessKey(String sessionToken,
+                                                   OzoneManager ozoneManager) {
+    try {
+      final OMMetadataManager metadataManager = ozoneManager.getMetadataManager();
+      if (metadataManager == null) {
+        return false;
+      }
+
+      final Table<String, String> revokedTable =
+          metadataManager.getS3RevokedStsTokenTable();
+      if (revokedTable == null) {
+        return false;
+      }
+
+      // Decode without full validation; constructSTSToken performs basic
+      // format checks and will throw OMException for invalid tokens.
+      final STSTokenIdentifier stsToken =
+          STSSecurityUtil.constructSTSToken(sessionToken);
+      final String tempAccessKeyId = stsToken.getTempAccessKeyId();
+      if (tempAccessKeyId == null || tempAccessKeyId.isEmpty()) {
+        return false;
+      }
+
+      return revokedTable.getIfExist(tempAccessKeyId) != null;
+    } catch (OMException e) {
+      // Token parsing issues will be handled by the normal validation path.
+      LOG.warn("Failed to decode STS token while checking revocation: {}",
+          e.getMessage());
+      return false;
+    } catch (Exception e) {
+      // Any DB or codec problem is treated as best-effort failure.
+      LOG.warn("Failed to check STS revocation state: {}", e.getMessage());
+      return false;
     }
   }
 

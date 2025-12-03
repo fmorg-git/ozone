@@ -204,6 +204,7 @@ import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.RenameK
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.RenameSnapshotRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.RenewDelegationTokenResponseProto;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.RevokeS3SecretRequest;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.RevokeS3TemporarySecretRequest;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.S3Authentication;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.S3Secret;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.SafeMode;
@@ -1161,6 +1162,20 @@ public final class OzoneManagerProtocolClientSideTranslatorPB
             .build();
     OMRequest omRequest = createOMRequest(Type.RevokeS3Secret)
             .setRevokeS3SecretRequest(request)
+            .build();
+    handleError(submitRequest(omRequest));
+  }
+
+  @Override
+  public void revokeS3TemporarySecret(String accessKeyId, String sessionToken) throws IOException {
+    RevokeS3TemporarySecretRequest request =
+        RevokeS3TemporarySecretRequest.newBuilder()
+            .setAccessKeyId(accessKeyId)
+            .setSessionToken(sessionToken)
+            .build();
+    OMRequest omRequest =
+        createOMRequest(Type.RevokeS3TemporarySecret)
+            .setRevokeS3TemporarySecretRequest(request)
             .build();
     handleError(submitRequest(omRequest));
   }

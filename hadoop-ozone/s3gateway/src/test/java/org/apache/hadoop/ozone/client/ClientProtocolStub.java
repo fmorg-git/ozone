@@ -463,7 +463,7 @@ public class ClientProtocolStub implements ClientProtocol {
   }
 
   @Override
-  public void revokeS3TemporarySecret(String accessKeyId) throws IOException {
+  public void revokeS3TemporarySecret(String accessKeyId, String sessionToken) throws IOException {
 
   }
 

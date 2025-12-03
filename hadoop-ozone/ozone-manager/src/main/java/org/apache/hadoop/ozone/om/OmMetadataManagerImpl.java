@@ -157,6 +157,11 @@ public class OmMetadataManagerImpl implements OMMetadataManager,
   private TypedTable<String, TransactionInfo> transactionInfoTable;
   private TypedTable<String, String> metaTable;
   private TypedTable<String, S3TemporarySecretValue> s3TemporarySecretTable;
+  /**
+   * Table of revoked STS temporary access key identifiers. Only the presence
+   * of a key is relevant; the value is the sessionToken.
+   */
+  private TypedTable<String, String> s3RevokedStsTokenTable;
 
   // Tables required for multi-tenancy
   private TypedTable<String, OmDBAccessIdInfo> tenantAccessIdTable;
@@ -462,7 +467,9 @@ public class OmMetadataManagerImpl implements OMMetadataManager,
     dTokenTable = initializer.get(OMDBDefinition.DELEGATION_TOKEN_TABLE_DEF);
     s3SecretTable = initializer.get(OMDBDefinition.S3_SECRET_TABLE_DEF);
     prefixTable = initializer.get(OMDBDefinition.PREFIX_TABLE_DEF);
-    s3TemporarySecretTable = initializer.get(OMDBDefinition.S3_TEMPORARY_SECRET_TABLE_DEF);
+    s3TemporarySecretTable =
+        initializer.get(OMDBDefinition.S3_TEMPORARY_SECRET_TABLE_DEF);
+    s3RevokedStsTokenTable = initializer.get(OMDBDefinition.S3_REVOKED_STS_TOKEN_TABLE_DEF);
 
     transactionInfoTable = initializer.get(OMDBDefinition.TRANSACTION_INFO_TABLE_DEF);
 
@@ -1631,6 +1638,11 @@ public class OmMetadataManagerImpl implements OMMetadataManager,
   @Override
   public Table<String, String> getMetaTable() {
     return metaTable;
+  }
+
+  @Override
+  public Table<String, String> getS3RevokedStsTokenTable() {
+    return s3RevokedStsTokenTable;
   }
 
   @Override

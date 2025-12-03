@@ -474,6 +474,19 @@ public interface OMMetadataManager extends DBStoreHAManager {
   Table<String, String> getMetaTable();
 
   /**
+   * Table containing revoked STS temporary access key identifiers.
+   *
+   * <p>Keys are STS temporary access key IDs (the accessKeyId component of
+   * STS credentials). The value is the session token. Callers should
+   * use {@link Table#getIfExist(Object)} so that RocksDB's keyMayExist
+   * optimisation can be leveraged for efficient revocation checks.</p>
+   *
+   * @return table mapping revoked STS temporary access key IDs to session tokens,
+   * or {@code null} if the table is not available in the current context.
+   */
+  Table<String, String> getS3RevokedStsTokenTable();
+
+  /**
    * Returns number of rows in a table.  This should not be used for very
    * large tables.
    * @param table

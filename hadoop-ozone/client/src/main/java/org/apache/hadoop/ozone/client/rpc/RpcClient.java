@@ -868,11 +868,11 @@ public class RpcClient implements ClientProtocol {
    * {@inheritDoc}
    */
   @Override
-  public void revokeS3TemporarySecret(String accessKeyId) throws IOException {
+  public void revokeS3TemporarySecret(String accessKeyId, String sessionToken) throws IOException {
     Preconditions.checkArgument(StringUtils.isNotBlank(accessKeyId),
         "accessKeyId cannot be null or empty.");
 
-    ozoneManagerClient.revokeS3TemporarySecret(accessKeyId);
+    ozoneManagerClient.revokeS3TemporarySecret(accessKeyId, sessionToken);
   }
 
   /**

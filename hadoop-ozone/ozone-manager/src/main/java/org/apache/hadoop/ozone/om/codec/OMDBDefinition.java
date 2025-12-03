@@ -58,6 +58,7 @@ import org.apache.ozone.compaction.log.CompactionLogEntry;
  * |            dTokenTable |      OzoneTokenID :- renew_time               |
  * |          s3SecretTable | s3g_access_key_id :- s3Secret                 |
  * | s3TemporarySecretTable | s3g_access_key_id :- s3TemporarySecret        |
+ * | s3RevokedStsTokenTable | sts_access_key_id :- sessionToken             |
  * |------------------------------------------------------------------------|
  * }
  * </pre>
@@ -169,6 +170,21 @@ public final class OMDBDefinition extends DBDefinition.WithMap {
       = new DBColumnFamilyDefinition<>(S3_TEMPORARY_SECRET_TABLE,
           StringCodec.get(),
           S3TemporarySecretValue.getCodec());
+
+  public static final String S3_REVOKED_STS_TOKEN_TABLE = "s3RevokedStsTokenTable";
+  /**
+   * s3RevokedStsTokenTable: sts_access_key_id :- sessionToken.
+   *
+   * <p>Only the presence of a key is relevant; the value is an opaque marker
+   * string so that {@link org.apache.hadoop.hdds.utils.db.Table#getIfExist}
+   * (implemented using RocksDB {@code keyMayExist}) can be used efficiently to
+   * check if a given STS temporary access key has been revoked.</p>
+   */
+  public static final DBColumnFamilyDefinition<String, String> S3_REVOKED_STS_TOKEN_TABLE_DEF
+      = new DBColumnFamilyDefinition<>(
+          S3_REVOKED_STS_TOKEN_TABLE,
+          StringCodec.get(),
+          StringCodec.get());
   //---------------------------------------------------------------------------
   // Volume, Bucket, Prefix and Transaction Tables:
   public static final String VOLUME_TABLE = "volumeTable";
@@ -341,6 +357,7 @@ public final class OMDBDefinition extends DBDefinition.WithMap {
           PRINCIPAL_TO_ACCESS_IDS_TABLE_DEF,
           S3_SECRET_TABLE_DEF,
           S3_TEMPORARY_SECRET_TABLE_DEF,
+          S3_REVOKED_STS_TOKEN_TABLE_DEF,
           SNAPSHOT_INFO_TABLE_DEF,
           SNAPSHOT_RENAMED_TABLE_DEF,
           COMPACTION_LOG_TABLE_DEF,

@@ -663,9 +663,10 @@ public interface OzoneManagerProtocol
   /**
    * Revokes s3 temporary secret of given access key id.
    * @param accessKeyId the s3 access key id
+   * @param sessionToken the s3 session token
    * @throws IOException if error occurs while revoking the temporary secret.
    */
-  default void revokeS3TemporarySecret(String accessKeyId) throws IOException {
+  default void revokeS3TemporarySecret(String accessKeyId, String sessionToken) throws IOException {
     throw new UnsupportedOperationException("OzoneManager does not require " +
         "this to be implemented, as write requests use a new approach.");
   }

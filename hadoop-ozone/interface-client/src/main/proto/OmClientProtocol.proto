@@ -2395,6 +2395,7 @@ message UpdateGetS3TemporarySecretRequest {
 
 message RevokeS3TemporarySecretRequest {
     required string accessKeyId = 1;
+    required string sessionToken = 2;
 }
 
 message AssumeRoleRequest {

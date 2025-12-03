@@ -766,9 +766,10 @@ public interface ClientProtocol {
   /**
    * Revoke S3 temporary secret for the given access key id.
    * @param accessKeyId s3 access key id
+   * @param sessionToken s3 session token
    * @throws IOException if error occurs while revoking the temporary secret.
    */
-  void revokeS3TemporarySecret(String accessKeyId) throws IOException;
+  void revokeS3TemporarySecret(String accessKeyId, String sessionToken) throws IOException;
 
   /**
    * Create a tenant.
