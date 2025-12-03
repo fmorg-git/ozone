@@ -26,10 +26,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
-
 import org.apache.hadoop.hdds.security.symmetric.ManagedSecretKey;
 import org.apache.hadoop.hdds.security.symmetric.SecretKeySignerClient;
 import org.apache.hadoop.ipc.ExternalCall;
@@ -77,7 +77,7 @@ public class TestS3RevokeTemporarySecretRequest {
     when(managedSecretKey.getId()).thenReturn(UUID.randomUUID());
     when(managedSecretKey.getSecretKey()).thenReturn(secretKey);
     when(managedSecretKey.sign(any(STSTokenIdentifier.class)))
-        .thenReturn("mock-signature".getBytes());
+        .thenReturn("mock-signature".getBytes(StandardCharsets.UTF_8));
     when(secretKeyClient.getCurrentSecretKey()).thenReturn(managedSecretKey);
 
     stsTokenSecretManager = new STSTokenSecretManager(secretKeyClient);
@@ -123,28 +123,30 @@ public class TestS3RevokeTemporarySecretRequest {
         UserGroupInformation.createRemoteUser(tempAccessKeyId);
     Server.getCurCall().set(new StubCall(tempUgi));
 
-    final OzoneManager ozoneManager = mock(OzoneManager.class);
-    when(ozoneManager.isS3MultiTenancyEnabled()).thenReturn(false);
-    when(ozoneManager.isS3Admin(any(UserGroupInformation.class)))
-        .thenReturn(false);
+    OMException ex;
+    try (OzoneManager ozoneManager = mock(OzoneManager.class)) {
+      when(ozoneManager.isS3MultiTenancyEnabled()).thenReturn(false);
+      when(ozoneManager.isS3Admin(any(UserGroupInformation.class)))
+          .thenReturn(false);
 
-    final RevokeS3TemporarySecretRequest revokeProto =
-        RevokeS3TemporarySecretRequest.newBuilder()
-            .setAccessKeyId(tempAccessKeyId)
-            .setSessionToken(sessionToken)
-            .build();
+      final RevokeS3TemporarySecretRequest revokeProto =
+          RevokeS3TemporarySecretRequest.newBuilder()
+              .setAccessKeyId(tempAccessKeyId)
+              .setSessionToken(sessionToken)
+              .build();
 
-    final OMRequest omRequest = OMRequest.newBuilder()
-        .setClientId(UUID.randomUUID().toString())
-        .setCmdType(Type.RevokeS3TemporarySecret)
-        .setRevokeS3TemporarySecretRequest(revokeProto)
-        .build();
+      final OMRequest omRequest = OMRequest.newBuilder()
+          .setClientId(UUID.randomUUID().toString())
+          .setCmdType(Type.RevokeS3TemporarySecret)
+          .setRevokeS3TemporarySecretRequest(revokeProto)
+          .build();
 
-    final OMClientRequest omClientRequest =
-        new S3RevokeTemporarySecretRequest(omRequest);
+      final OMClientRequest omClientRequest =
+          new S3RevokeTemporarySecretRequest(omRequest);
 
-    OMException ex = assertThrows(OMException.class,
-        () -> omClientRequest.preExecute(ozoneManager));
+      ex = assertThrows(OMException.class,
+          () -> omClientRequest.preExecute(ozoneManager));
+    }
     assertEquals(OMException.ResultCodes.USER_MISMATCH, ex.getResult());
   }
 
@@ -316,36 +318,38 @@ public class TestS3RevokeTemporarySecretRequest {
         UserGroupInformation.createRemoteUser("carol@EXAMPLE.COM");
     Server.getCurCall().set(new StubCall(callerUgi));
 
-    final OzoneManager ozoneManager = mock(OzoneManager.class);
-    when(ozoneManager.isS3MultiTenancyEnabled()).thenReturn(true);
-    when(ozoneManager.getMultiTenantManager()).thenReturn(omMultiTenantManager);
+    OMException ex;
+    try (OzoneManager ozoneManager = mock(OzoneManager.class)) {
+      when(ozoneManager.isS3MultiTenancyEnabled()).thenReturn(true);
+      when(ozoneManager.getMultiTenantManager()).thenReturn(omMultiTenantManager);
 
-    // Original access key id is assigned to a tenant and owned by "alice".
-    when(omMultiTenantManager.getTenantForAccessID(originalAccessKeyId))
-        .thenReturn(java.util.Optional.of(tenantId));
-    when(omMultiTenantManager.getUserNameGivenAccessId(originalAccessKeyId))
-        .thenReturn("alice");
-    // Caller is not a tenant admin.
-    when(omMultiTenantManager.isTenantAdmin(callerUgi, tenantId, false))
-        .thenReturn(false);
+      // Original access key id is assigned to a tenant and owned by "alice".
+      when(omMultiTenantManager.getTenantForAccessID(originalAccessKeyId))
+          .thenReturn(java.util.Optional.of(tenantId));
+      when(omMultiTenantManager.getUserNameGivenAccessId(originalAccessKeyId))
+          .thenReturn("alice");
+      // Caller is not a tenant admin.
+      when(omMultiTenantManager.isTenantAdmin(callerUgi, tenantId, false))
+          .thenReturn(false);
 
-    final RevokeS3TemporarySecretRequest revokeProto =
-        RevokeS3TemporarySecretRequest.newBuilder()
-            .setAccessKeyId(tempAccessKeyId)
-            .setSessionToken(sessionToken)
-            .build();
+      final RevokeS3TemporarySecretRequest revokeProto =
+          RevokeS3TemporarySecretRequest.newBuilder()
+              .setAccessKeyId(tempAccessKeyId)
+              .setSessionToken(sessionToken)
+              .build();
 
-    final OMRequest omRequest = OMRequest.newBuilder()
-        .setClientId(UUID.randomUUID().toString())
-        .setCmdType(Type.RevokeS3TemporarySecret)
-        .setRevokeS3TemporarySecretRequest(revokeProto)
-        .build();
+      final OMRequest omRequest = OMRequest.newBuilder()
+          .setClientId(UUID.randomUUID().toString())
+          .setCmdType(Type.RevokeS3TemporarySecret)
+          .setRevokeS3TemporarySecretRequest(revokeProto)
+          .build();
 
-    final OMClientRequest omClientRequest =
-        new S3RevokeTemporarySecretRequest(omRequest);
+      final OMClientRequest omClientRequest =
+          new S3RevokeTemporarySecretRequest(omRequest);
 
-    OMException ex = assertThrows(OMException.class,
-        () -> omClientRequest.preExecute(ozoneManager));
+      ex = assertThrows(OMException.class,
+          () -> omClientRequest.preExecute(ozoneManager));
+    }
     assertEquals(OMException.ResultCodes.USER_MISMATCH, ex.getResult());
   }
 
@@ -368,29 +372,31 @@ public class TestS3RevokeTemporarySecretRequest {
         UserGroupInformation.createRemoteUser(originalAccessKeyId);
     Server.getCurCall().set(new StubCall(originalUgi));
 
-    final OzoneManager ozoneManager = mock(OzoneManager.class);
-    when(ozoneManager.isS3MultiTenancyEnabled()).thenReturn(false);
-    when(ozoneManager.isS3Admin(any(UserGroupInformation.class)))
-        .thenReturn(false);
+    OMException ex;
+    try (OzoneManager ozoneManager = mock(OzoneManager.class)) {
+      when(ozoneManager.isS3MultiTenancyEnabled()).thenReturn(false);
+      when(ozoneManager.isS3Admin(any(UserGroupInformation.class)))
+          .thenReturn(false);
 
-    // Request tries to revoke "ASIA_OTHER_ACCESS" using a token for "ASIA_TEMP_ACCESS"
-    final RevokeS3TemporarySecretRequest revokeProto =
-        RevokeS3TemporarySecretRequest.newBuilder()
-            .setAccessKeyId(otherAccessKeyId)
-            .setSessionToken(sessionToken)
-            .build();
+      // Request tries to revoke "ASIA_OTHER_ACCESS" using a token for "ASIA_TEMP_ACCESS"
+      final RevokeS3TemporarySecretRequest revokeProto =
+          RevokeS3TemporarySecretRequest.newBuilder()
+              .setAccessKeyId(otherAccessKeyId)
+              .setSessionToken(sessionToken)
+              .build();
 
-    final OMRequest omRequest = OMRequest.newBuilder()
-        .setClientId(UUID.randomUUID().toString())
-        .setCmdType(Type.RevokeS3TemporarySecret)
-        .setRevokeS3TemporarySecretRequest(revokeProto)
-        .build();
+      final OMRequest omRequest = OMRequest.newBuilder()
+          .setClientId(UUID.randomUUID().toString())
+          .setCmdType(Type.RevokeS3TemporarySecret)
+          .setRevokeS3TemporarySecretRequest(revokeProto)
+          .build();
 
-    final OMClientRequest omClientRequest =
-        new S3RevokeTemporarySecretRequest(omRequest);
+      final OMClientRequest omClientRequest =
+          new S3RevokeTemporarySecretRequest(omRequest);
 
-    OMException ex = assertThrows(OMException.class,
-        () -> omClientRequest.preExecute(ozoneManager));
+      ex = assertThrows(OMException.class,
+          () -> omClientRequest.preExecute(ozoneManager));
+    }
     assertEquals(OMException.ResultCodes.INVALID_REQUEST, ex.getResult());
   }
 
