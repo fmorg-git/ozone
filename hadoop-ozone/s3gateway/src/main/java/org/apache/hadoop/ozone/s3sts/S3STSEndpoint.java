@@ -34,7 +34,10 @@ import javax.ws.rs.core.Response;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
+import org.apache.hadoop.ozone.om.exceptions.OMException;
 import org.apache.hadoop.ozone.om.helpers.AssumeRoleResponseInfo;
+import org.apache.hadoop.ozone.om.helpers.AwsRoleArnValidator;
+import org.apache.hadoop.ozone.om.helpers.S3STSUtils;
 import org.apache.hadoop.ozone.s3.exception.OS3Exception;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,21 +62,12 @@ public class S3STSEndpoint extends S3STSEndpointBase {
   // STS API constants
   private static final String STS_ACTION_PARAM = "Action";
   private static final String ASSUME_ROLE_ACTION = "AssumeRole";
-  private static final String ROLE_ARN_PARAM = "RoleArn";
-  private static final String ROLE_DURATION_SECONDS_PARAM = "DurationSeconds";
   private static final String GET_SESSION_TOKEN_ACTION = "GetSessionToken";
   private static final String ASSUME_ROLE_WITH_SAML_ACTION = "AssumeRoleWithSAML";
   private static final String ASSUME_ROLE_WITH_WEB_IDENTITY_ACTION = "AssumeRoleWithWebIdentity";
   private static final String GET_CALLER_IDENTITY_ACTION = "GetCallerIdentity";
   private static final String DECODE_AUTHORIZATION_MESSAGE_ACTION = "DecodeAuthorizationMessage";
   private static final String GET_ACCESS_KEY_INFO_ACTION = "GetAccessKeyInfo";
-
-  // Default token duration (in seconds) - AWS default is 3600 (1 hour)
-  // TODO - add these constants and also validations in a common place that both endpoint and backend can use
-  private static final int DEFAULT_DURATION_SECONDS = 3600;
-  private static final int MAX_DURATION_SECONDS = 43200; // 12 hours
-  private static final int MIN_DURATION_SECONDS = 900;   // 15 minutes
-  private static final int MAX_SESSION_POLICY_SIZE = 2048;
 
   /**
    * STS endpoint that handles GET requests with query parameters.
@@ -131,15 +125,6 @@ public class S3STSEndpoint extends S3STSEndpointBase {
             .entity("Missing required parameter: " + STS_ACTION_PARAM)
             .build();
       }
-      int duration;
-      try {
-        duration = validateDuration(durationSeconds);
-      } catch (IllegalArgumentException e) {
-        return Response.status(Response.Status.BAD_REQUEST)
-            .entity(e.getMessage())
-            .build();
-      }
-
       if (version == null || !version.equals("2011-06-15")) {
         return Response.status(Response.Status.BAD_REQUEST)
             .entity("Invalid or missing Version parameter. Supported version is 2011-06-15.")
@@ -148,7 +133,7 @@ public class S3STSEndpoint extends S3STSEndpointBase {
 
       switch (action) {
       case ASSUME_ROLE_ACTION:
-        return handleAssumeRole(roleArn, roleSessionName, duration, awsIamSessionPolicy);
+        return handleAssumeRole(roleArn, roleSessionName, durationSeconds, awsIamSessionPolicy);
       // These operations are not supported yet
       case GET_SESSION_TOKEN_ACTION:
       case ASSUME_ROLE_WITH_SAML_ACTION:
@@ -174,54 +159,25 @@ public class S3STSEndpoint extends S3STSEndpointBase {
     }
   }
 
-  private int validateDuration(Integer durationSeconds) throws IllegalArgumentException, OS3Exception {
-    if (durationSeconds == null) {
-      return DEFAULT_DURATION_SECONDS;
-    }
-
-    if (durationSeconds < MIN_DURATION_SECONDS || durationSeconds > MAX_DURATION_SECONDS) {
-      throw new IllegalArgumentException(
-          "Invalid Value: " + ROLE_DURATION_SECONDS_PARAM + " must be between " + MIN_DURATION_SECONDS +
-              " and " + MAX_DURATION_SECONDS + " seconds");
-    }
-
-    return durationSeconds;
-  }
-
-  private Response handleAssumeRole(String roleArn, String roleSessionName, int duration, String awsIamSessionPolicy)
-      throws IOException, OS3Exception {
-    // Validate required parameters for AssumeRole. RoleArn is required
-    if (roleArn == null || roleArn.isEmpty()) {
+  private Response handleAssumeRole(String roleArn, String roleSessionName, Integer durationSeconds,
+      String awsIamSessionPolicy) throws IOException, OS3Exception {
+    // Validate parameters
+    int duration;
+    try {
+      duration = S3STSUtils.validateDuration(durationSeconds);
+      AwsRoleArnValidator.validateAndExtractRoleNameFromArn(roleArn);
+      S3STSUtils.validateRoleSessionName(roleSessionName);
+      S3STSUtils.validateSessionPolicy(awsIamSessionPolicy);
+    } catch (OMException e) {
       return Response.status(Response.Status.BAD_REQUEST)
-          .entity("Missing required parameter: " + ROLE_ARN_PARAM)
-          .build();
-    }
-
-    if (roleSessionName == null || roleSessionName.isEmpty()) {
-      return Response.status(Response.Status.BAD_REQUEST)
-          .entity("Missing required parameter: RoleSessionName")
-          .build();
-    }
-
-    // Validate role session name format (AWS requirements)
-    if (!isValidRoleSessionName(roleSessionName)) {
-      return Response.status(Response.Status.BAD_REQUEST)
-          .entity("Invalid RoleSessionName: must be 2-64 characters long and " +
-              "contain only alphanumeric characters, +, =, ,, ., @, -")
-          .build();
-    }
-
-    // Check Policy size if available
-    if (awsIamSessionPolicy != null && awsIamSessionPolicy.length() > MAX_SESSION_POLICY_SIZE) {
-      return Response.status(Response.Status.BAD_REQUEST)
-          .entity("Policy length exceeded maximum allowed length of " + MAX_SESSION_POLICY_SIZE)
+          .entity(e.getMessage())
           .build();
     }
 
     final String assumedRoleUserArn;
     try {
-      assumedRoleUserArn = toAssumedRoleUserArn(roleArn, roleSessionName);
-    } catch (IllegalArgumentException e) {
+      assumedRoleUserArn = S3STSUtils.toAssumedRoleUserArn(roleArn, roleSessionName);
+    } catch (OMException e) {
       return Response.status(Response.Status.BAD_REQUEST)
           .entity(e.getMessage())
           .build();
@@ -235,15 +191,6 @@ public class S3STSEndpoint extends S3STSEndpointBase {
     return Response.ok(responseXml)
         .header("Content-Type", "text/xml")
         .build();
-  }
-
-  private boolean isValidRoleSessionName(String roleSessionName) {
-    if (roleSessionName.length() < 2 || roleSessionName.length() > 64) {
-      return false;
-    }
-
-    // AWS allows: alphanumeric, +, =, ,, ., @, -
-    return roleSessionName.matches("[a-zA-Z0-9+=,.@\\-]+");
   }
 
   private String generateAssumeRoleResponse(String assumedRoleUserArn, AssumeRoleResponseInfo responseInfo)
@@ -285,36 +232,5 @@ public class S3STSEndpoint extends S3STSEndpointBase {
     } catch (JAXBException e) {
       throw new IOException("Failed to marshal AssumeRole response", e);
     }
-  }
-
-  private String toAssumedRoleUserArn(String roleArn, String roleSessionName) {
-    // RoleArn format: arn:aws:iam::<account-id>:role/<role-name>
-    // Assumed role user arn format: arn:aws:sts::<account-id>:assumed-role/<role-name>/<role-session-name>
-    // TODO - refactor and reuse AwsRoleArnValidator for validation in future PR
-    final String errMsg = "Invalid RoleArn: must be in the format arn:aws:iam::<account-id>:role/<role-name>";
-    final String[] parts = roleArn.split(":", 6);
-    if (parts.length != 6 || !"arn".equals(parts[0]) || parts[1].isEmpty() || !"iam".equals(parts[2])) {
-      throw new IllegalArgumentException(errMsg);
-    }
-
-    final String partition = parts[1];
-    final String accountId = parts[4];
-    final String resource = parts[5]; // role/<name>
-
-    if (accountId == null || accountId.isEmpty() || resource == null || !resource.startsWith("role/") ||
-        resource.length() == "role/".length()) {
-      throw new IllegalArgumentException(errMsg);
-    }
-
-    final String roleName = resource.substring("role/".length());
-    final StringBuilder stringBuilder = new StringBuilder("arn:");
-    stringBuilder.append(partition);
-    stringBuilder.append(":sts::");
-    stringBuilder.append(accountId);
-    stringBuilder.append(":assumed-role/");
-    stringBuilder.append(roleName);
-    stringBuilder.append('/');
-    stringBuilder.append(roleSessionName);
-    return stringBuilder.toString();
   }
 }

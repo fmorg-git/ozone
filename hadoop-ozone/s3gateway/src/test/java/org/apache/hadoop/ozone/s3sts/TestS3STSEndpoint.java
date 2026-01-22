@@ -173,6 +173,6 @@ public class TestS3STSEndpoint {
     assertEquals(400, response.getStatus());
     final String errorMessage = (String) response.getEntity();
     assertTrue(
-        errorMessage.contains("Invalid RoleArn: must be in the format arn:aws:iam::<account-id>:role/<role-name>"));
+        errorMessage.contains("Invalid role ARN (does not start with arn:aws:iam::)"));
   }
 }
