@@ -51,7 +51,7 @@ public final class RequestContext {
   private final String sessionPolicy;
 
   /**
-   * AWS IAM S3 action name for this request (e.g. s3:PutObject), when the call originated from S3 Gateway.
+   * S3 action name for this request without the s3: prefix (e.g. PutObject), when the call originated from S3 Gateway.
    * Null for non-S3 clients or when not applicable.
    */
   private final String s3Action;

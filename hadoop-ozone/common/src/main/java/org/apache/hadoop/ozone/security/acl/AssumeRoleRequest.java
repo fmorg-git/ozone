@@ -96,14 +96,16 @@ public class AssumeRoleRequest {
     private final Set<IOzoneObj> objects;
     private final Set<IAccessAuthorizer.ACLType> permissions;
     /**
-     * S3 action names (e.g. s3:GetObject) from the session policy.  When present, the permissions will be further
-     * restricted by the set of available S3 actions.  An empty (or null) set means all actions granted by the
-     * permissions are allowed for this OzoneGrant.
+     * S3 action names without the s3: prefix (e.g. GetObject) from the session policy.  When present, the permissions
+     * will be further restricted by the set of available S3 actions.  An empty (or null) set means this OzoneGrant
+     * does not enforce any restrictions on actions.
      */
     private final Set<String> s3Actions;
 
     public OzoneGrant(Set<IOzoneObj> objects, Set<IAccessAuthorizer.ACLType> permissions) {
-      this(objects, permissions, Collections.emptySet());
+      this.objects = objects;
+      this.permissions = permissions;
+      this.s3Actions = Collections.emptySet();
     }
 
     public OzoneGrant(Set<IOzoneObj> objects, Set<IAccessAuthorizer.ACLType> permissions,
