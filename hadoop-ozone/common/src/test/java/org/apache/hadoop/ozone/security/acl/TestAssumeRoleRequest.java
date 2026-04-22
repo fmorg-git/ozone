@@ -62,7 +62,7 @@ public class TestAssumeRoleRequest {
     assertEquals(permissions, grant.getPermissions());
     assertEquals(s3Actions, grant.getS3Actions());
     // Ensure the s3 actions are not modifiable
-    assertThrows(UnsupportedOperationException.class, () -> grant.getS3Actions().add("s3:GetObject"));
+    assertThrows(UnsupportedOperationException.class, () -> grant.getS3Actions().add("GetObject"));
 
     assertEquals("host", assumeRoleRequest1.getHost());
     assertNull(assumeRoleRequest1.getIp());
@@ -94,8 +94,8 @@ public class TestAssumeRoleRequest {
     final Set<IAccessAuthorizer.ACLType> permissions = Collections.singleton(IAccessAuthorizer.ACLType.READ);
 
     final Set<String> s3Actions = new LinkedHashSet<>();
-    s3Actions.add("s3:GetObject");
-    s3Actions.add("s3:PutObject");
+    s3Actions.add("GetObject");
+    s3Actions.add("PutObject");
 
     final AssumeRoleRequest.OzoneGrant grantWithActions = new AssumeRoleRequest.OzoneGrant(
         objects, permissions, s3Actions);

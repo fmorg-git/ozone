@@ -61,7 +61,7 @@ public class TestRequestContext {
     final String serviceId = "testServiceId";
     final String ownerName = "testOwner";
     final String sessionPolicy = "{\"Statement\":[{\"Effect\":\"Allow\"}]}";
-    final String s3IamAction = "s3:GetObject";
+    final String s3Action = "GetObject";
 
     final RequestContext original = RequestContext.newBuilder()
         .setHost(host)
@@ -72,7 +72,7 @@ public class TestRequestContext {
         .setOwnerName(ownerName)
         .setRecursiveAccessCheck(true)
         .setSessionPolicy(sessionPolicy)
-        .setS3Action(s3IamAction)
+        .setS3Action(s3Action)
         .build();
 
     // Use toBuilder to create a new builder
@@ -90,7 +90,7 @@ public class TestRequestContext {
     assertTrue(original.isRecursiveAccessCheck(), "RecursiveAccessCheck should be preserved");
     assertEquals(original.getSessionPolicy(), requestCtxFromToBuilder.getSessionPolicy(),
         "SessionPolicy should be preserved");
-    assertEquals(original.getS3Action(), requestCtxFromToBuilder.getS3Action(), "S3 IAM action should be preserved");
+    assertEquals(original.getS3Action(), requestCtxFromToBuilder.getS3Action(), "S3 action should be preserved");
   }
 
   @Test
@@ -116,7 +116,7 @@ public class TestRequestContext {
         .setOwnerName("owner2")
         .setRecursiveAccessCheck(true)
         .setSessionPolicy("{\"Statement\":[]}")
-        .setS3Action("s3:DeleteObject")
+        .setS3Action("DeleteObject")
         .build();
 
     // Verify original is unchanged
@@ -135,6 +135,6 @@ public class TestRequestContext {
     assertEquals("owner2", modified.getOwnerName(), "Modified owner should be updated");
     assertTrue(modified.isRecursiveAccessCheck(), "Modified recursive flag should be updated");
     assertEquals("{\"Statement\":[]}", modified.getSessionPolicy(), "Modified session policy should be updated");
-    assertEquals("s3:DeleteObject", modified.getS3Action(), "Modified S3 action should be updated");
+    assertEquals("DeleteObject", modified.getS3Action(), "Modified S3 action should be updated");
   }
 }
