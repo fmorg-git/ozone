@@ -18,6 +18,8 @@
 package org.apache.hadoop.ozone.security.acl;
 
 import java.net.InetAddress;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
 import net.jcip.annotations.Immutable;
@@ -93,10 +95,22 @@ public class AssumeRoleRequest {
   public static class OzoneGrant {
     private final Set<IOzoneObj> objects;
     private final Set<IAccessAuthorizer.ACLType> permissions;
+    /**
+     * S3 action names (e.g. s3:GetObject) from the session policy.  When present, the permissions will be further
+     * restricted by the set of available S3 actions.  An empty (or null) set means all actions granted by the
+     * permissions are allowed for this OzoneGrant.
+     */
+    private final Set<String> s3Actions;
 
     public OzoneGrant(Set<IOzoneObj> objects, Set<IAccessAuthorizer.ACLType> permissions) {
+      this(objects, permissions, Collections.emptySet());
+    }
+
+    public OzoneGrant(Set<IOzoneObj> objects, Set<IAccessAuthorizer.ACLType> permissions,
+        Set<String> s3Actions) {
       this.objects = objects;
       this.permissions = permissions;
+      this.s3Actions = Collections.unmodifiableSet(new LinkedHashSet<>(s3Actions));
     }
 
     public Set<IOzoneObj> getObjects() {
@@ -105,6 +119,10 @@ public class AssumeRoleRequest {
 
     public Set<IAccessAuthorizer.ACLType> getPermissions() {
       return permissions;
+    }
+
+    public Set<String> getS3Actions() {
+      return s3Actions;
     }
 
     @Override
@@ -116,12 +134,19 @@ public class AssumeRoleRequest {
       }
 
       final OzoneGrant that = (OzoneGrant) o;
-      return Objects.equals(objects, that.objects) && Objects.equals(permissions, that.permissions);
+      return Objects.equals(objects, that.objects) && Objects.equals(permissions, that.permissions) &&
+          Objects.equals(s3Actions, that.s3Actions);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(objects, permissions);
+      return Objects.hash(objects, permissions, s3Actions);
+    }
+
+    @Override
+    public String toString() {
+      return "OzoneGrant{" + "objects=" + objects + ", permissions=" + permissions + ", s3Actions="
+          + s3Actions + '}';
     }
   }
 }
