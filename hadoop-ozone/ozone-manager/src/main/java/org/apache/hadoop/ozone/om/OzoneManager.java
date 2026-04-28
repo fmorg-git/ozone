@@ -3977,7 +3977,7 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
     auditMap.put(OzoneConsts.PREFIX, prefix);
 
     try {
-      if (getAclsEnabled() && isStsS3Request()) {
+      if (getAclsEnabled()) {
         omMetadataReader.checkAcls(
             ResourceType.BUCKET, StoreType.OZONE, ACLType.READ, realVolumeName, realBucketName, null);
         omMetadataReader.checkAcls(
