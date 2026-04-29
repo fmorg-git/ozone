@@ -877,7 +877,7 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
   public static S3Authentication getS3Auth() {
     return S3_AUTH.get();
   }
-  
+
   /** Returns the ThreadName prefix for the current OM. */
   public String getThreadNamePrefix() {
     return threadPrefix;
