@@ -3942,11 +3942,11 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
     final String realVolumeName = bucket.realVolume();
     final String realBucketName = bucket.realBucket();
 
-    if (getAclsEnabled() && isStsS3Request()) {
+    if (getAclsEnabled()) {
       omMetadataReader.checkAcls(
           ResourceType.BUCKET, StoreType.OZONE, ACLType.READ, realVolumeName, realBucketName, null);
       omMetadataReader.checkAcls(
-          ResourceType.KEY, StoreType.OZONE, ACLType.LIST, realVolumeName, realBucketName, keyName);
+          ResourceType.KEY, StoreType.OZONE, ACLType.READ, realVolumeName, realBucketName, keyName);
     }
 
     final Map<String, String> auditMap = bucket.audit();

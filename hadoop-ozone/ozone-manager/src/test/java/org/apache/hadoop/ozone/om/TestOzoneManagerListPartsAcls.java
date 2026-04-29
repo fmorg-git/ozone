@@ -17,7 +17,6 @@
 
 package org.apache.hadoop.ozone.om;
 
-import static org.apache.hadoop.ozone.security.acl.IAccessAuthorizer.ACLType.LIST;
 import static org.apache.hadoop.ozone.security.acl.IAccessAuthorizer.ACLType.READ;
 import static org.apache.hadoop.ozone.security.acl.OzoneObj.ResourceType.BUCKET;
 import static org.apache.hadoop.ozone.security.acl.OzoneObj.ResourceType.KEY;
@@ -47,7 +46,6 @@ import org.apache.hadoop.ozone.audit.AuditMessage;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
 import org.apache.hadoop.ozone.om.helpers.OmMultipartUploadListParts;
 import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.S3Authentication;
-import org.apache.hadoop.ozone.security.STSTokenIdentifier;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -59,7 +57,7 @@ import org.mockito.InOrder;
 
 
 /**
- * Unit tests for STS + ACL checks on {@link OzoneManager#listParts}.
+ * Unit tests for ACL checks on {@link OzoneManager#listParts}.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class TestOzoneManagerListPartsAcls {
@@ -78,7 +76,6 @@ public class TestOzoneManagerListPartsAcls {
   private static final String REAL_BUCKET = "realBucket";
   private static final String KEY_NAME = "object/key";
   private static final String UPLOAD_ID = "uploadId";
-  private static final String STS_ACCESS_ID = "ASIA7O1AJD8VV4KCEAX5";
 
   @BeforeAll
   void setup(@TempDir File folder) throws Exception {
@@ -121,12 +118,11 @@ public class TestOzoneManagerListPartsAcls {
   @AfterEach
   void tearDown() {
     OzoneManager.setS3Auth(null);
-    OzoneManager.setStsTokenIdentifier(null);
   }
 
   @Test
-  void testSkipsAclChecksWhenAclsAreDisabledEvenForStsRequest() throws Exception {
-    setupStsS3Request();
+  void testSkipsAclChecksWhenAclsAreDisabled() throws Exception {
+    setupS3Request();
     when(omSpy.getAclsEnabled()).thenReturn(false);
 
     omSpy.listParts(REQUESTED_VOLUME, REQUESTED_BUCKET, KEY_NAME, UPLOAD_ID, 0, 10);
@@ -137,26 +133,15 @@ public class TestOzoneManagerListPartsAcls {
   }
 
   @Test
-  void testSkipsAclChecksWhenNotStsRequestEvenIfAclsAreEnabled() throws Exception {
-    OzoneManager.setS3Auth(null);
-    OzoneManager.setStsTokenIdentifier(null);
-    when(omSpy.getAclsEnabled()).thenReturn(true);
-
-    omSpy.listParts(REQUESTED_VOLUME, REQUESTED_BUCKET, KEY_NAME, UPLOAD_ID, 0, 10);
-
-    verify(omMetadataReader, never()).checkAcls(any(), any(), any(), any(), any(), any());
-  }
-
-  @Test
-  void testAclsEnabledAndStsRequestChecksBucketReadThenKeyListUsingResolvedNames() throws Exception {
-    setupStsS3Request();
+  void testAclsEnabledChecksBucketReadThenKeyReadUsingResolvedNames() throws Exception {
+    setupS3Request();
     when(omSpy.getAclsEnabled()).thenReturn(true);
 
     omSpy.listParts(REQUESTED_VOLUME, REQUESTED_BUCKET, KEY_NAME, UPLOAD_ID, 0, 10);
 
     final InOrder inOrder = inOrder(omMetadataReader);
     inOrder.verify(omMetadataReader).checkAcls(BUCKET, OZONE, READ, REAL_VOLUME, REAL_BUCKET, null);
-    inOrder.verify(omMetadataReader).checkAcls(KEY, OZONE, LIST, REAL_VOLUME, REAL_BUCKET, KEY_NAME);
+    inOrder.verify(omMetadataReader).checkAcls(KEY, OZONE, READ, REAL_VOLUME, REAL_BUCKET, KEY_NAME);
     verify(keyManager).listParts(
         eq(REAL_VOLUME), eq(REAL_BUCKET), eq(KEY_NAME), eq(UPLOAD_ID), eq(0), eq(10));
     verify(metrics).incNumListMultipartUploadParts();
@@ -164,8 +149,8 @@ public class TestOzoneManagerListPartsAcls {
   }
 
   @Test
-  void testReadAclAccessDeniedSkipsKeyManagerAndKeyListAclChecksAndNoMetrics() throws Exception {
-    setupStsS3Request();
+  void testReadAclAccessDeniedSkipsKeyManagerAndKeyReadAclChecksAndNoMetrics() throws Exception {
+    setupS3Request();
     when(omSpy.getAclsEnabled()).thenReturn(true);
 
     doThrow(new OMException("denied", OMException.ResultCodes.PERMISSION_DENIED))
@@ -179,17 +164,17 @@ public class TestOzoneManagerListPartsAcls {
         anyString(), anyString(), anyString(), anyString(), anyInt(), anyInt());
     verify(metrics, never()).incNumListMultipartUploadParts();
     verify(metrics, never()).incNumListMultipartUploadPartFails();
-    verify(omMetadataReader, never()).checkAcls(KEY, OZONE, LIST, REAL_VOLUME, REAL_BUCKET, KEY_NAME);
+    verify(omMetadataReader, never()).checkAcls(KEY, OZONE, READ, REAL_VOLUME, REAL_BUCKET, KEY_NAME);
   }
 
   @Test
-  void testKeyListAclAccessDeniedSkipsKeyManagerAndNoMetrics() throws Exception {
-    setupStsS3Request();
+  void testKeyReadAclAccessDeniedSkipsKeyManagerAndNoMetrics() throws Exception {
+    setupS3Request();
     when(omSpy.getAclsEnabled()).thenReturn(true);
 
     doNothing().when(omMetadataReader).checkAcls(BUCKET, OZONE, READ, REAL_VOLUME, REAL_BUCKET, null);
     doThrow(new OMException("denied", OMException.ResultCodes.PERMISSION_DENIED))
-        .when(omMetadataReader).checkAcls(KEY, OZONE, LIST, REAL_VOLUME, REAL_BUCKET, KEY_NAME);
+        .when(omMetadataReader).checkAcls(KEY, OZONE, READ, REAL_VOLUME, REAL_BUCKET, KEY_NAME);
 
     assertThrows(
         OMException.class, () -> omSpy.listParts(
@@ -201,19 +186,7 @@ public class TestOzoneManagerListPartsAcls {
     verify(metrics, never()).incNumListMultipartUploadPartFails();
   }
 
-  @Test
-  void testNonStsRequestSkipsAclChecks() throws Exception {
-    OzoneManager.setS3Auth(S3Authentication.newBuilder().setAccessId(STS_ACCESS_ID).build());
-    OzoneManager.setStsTokenIdentifier(null);
-    when(omSpy.getAclsEnabled()).thenReturn(true);
-
-    omSpy.listParts(REQUESTED_VOLUME, REQUESTED_BUCKET, KEY_NAME, UPLOAD_ID, 0, 10);
-
-    verify(omMetadataReader, never()).checkAcls(any(), any(), any(), any(), any(), any());
-  }
-
-  private void setupStsS3Request() {
-    OzoneManager.setS3Auth(S3Authentication.newBuilder().setAccessId(STS_ACCESS_ID).build());
-    OzoneManager.setStsTokenIdentifier(mock(STSTokenIdentifier.class));
+  private void setupS3Request() {
+    OzoneManager.setS3Auth(S3Authentication.newBuilder().setAccessId("AKIAJWFJK62WUTKNFJJA").build());
   }
 }
