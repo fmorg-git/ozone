@@ -100,7 +100,6 @@ public class BucketEndpoint extends EndpointBase {
     S3RequestContext context = new S3RequestContext(this, S3GAction.GET_BUCKET);
 
     long startNanos = context.getStartNanos();
-    S3GAction s3GAction = context.getAction();
     PerformanceStringBuilder perf = context.getPerf();
 
     // Chain of responsibility: let each handler try to handle the request
@@ -128,7 +127,7 @@ public class BucketEndpoint extends EndpointBase {
     try {
       final String uploads = queryParams().get(QueryParams.UPLOADS);
       if (uploads != null) {
-        s3GAction = S3GAction.LIST_MULTIPART_UPLOAD;
+        context.setAction(S3GAction.LIST_MULTIPART_UPLOAD);
         final String uploadIdMarker = queryParams().get(QueryParams.UPLOAD_ID_MARKER);
         final String keyMarker = queryParams().get(QueryParams.KEY_MARKER);
         return listMultipartUploads(bucketName, prefix, keyMarker, uploadIdMarker, maxUploads);
@@ -161,12 +160,12 @@ public class BucketEndpoint extends EndpointBase {
       ozoneKeyIterator = bucket.listKeys(prefix, prevKey, shallow);
 
     } catch (OMException ex) {
-      auditReadFailure(s3GAction, ex);
+      auditReadFailure(context.getAction(), ex);
       getMetrics().updateGetBucketFailureStats(startNanos);
       handleOMException(ex, bucketName, prefix);
     } catch (Exception ex) {
       getMetrics().updateGetBucketFailureStats(startNanos);
-      auditReadFailure(s3GAction, ex);
+      auditReadFailure(context.getAction(), ex);
       throw ex;
     }
 
@@ -255,11 +254,11 @@ public class BucketEndpoint extends EndpointBase {
         }
       } catch (RuntimeException ex) {
         getMetrics().updateGetBucketFailureStats(startNanos);
-        auditReadFailure(s3GAction, ex);
+        auditReadFailure(context.getAction(), ex);
         if (ex.getCause() instanceof OMException) {
           final OMException omException = (OMException) ex.getCause();
           if (omException.getResult() == ResultCodes.FILE_NOT_FOUND) {
-            throw ex; 
+            throw ex;
           }
           handleOMException(omException, bucketName, prefix);
         } else {
@@ -289,7 +288,7 @@ public class BucketEndpoint extends EndpointBase {
     getMetrics().incListKeyCount(keyCount);
     perf.appendCount(keyCount);
     perf.appendOpLatencyNanos(opLatencyNs);
-    auditReadSuccess(s3GAction, perf);
+    auditReadSuccess(context.getAction(), perf);
     response.setKeyCount(keyCount);
     return Response.ok(response).build();
   }
@@ -390,16 +389,16 @@ public class BucketEndpoint extends EndpointBase {
   @HEAD
   public Response head(@PathParam(BUCKET) String bucketName)
       throws OS3Exception, IOException {
-    long startNanos = Time.monotonicNowNanos();
-    S3GAction s3GAction = S3GAction.HEAD_BUCKET;
+    S3RequestContext context = new S3RequestContext(this, S3GAction.HEAD_BUCKET);
+    long startNanos = context.getStartNanos();
     try {
       OzoneBucket bucket = getBucket(bucketName);
       S3Owner.verifyBucketOwnerCondition(getHeaders(), bucketName, bucket.getOwner());
-      auditReadSuccess(s3GAction);
+      auditReadSuccess(context.getAction());
       getMetrics().updateHeadBucketSuccessStats(startNanos);
       return Response.ok().build();
     } catch (Exception e) {
-      auditReadFailure(s3GAction, e);
+      auditReadFailure(context.getAction(), e);
       throw e;
     }
   }
@@ -438,7 +437,7 @@ public class BucketEndpoint extends EndpointBase {
       @QueryParam(QueryParams.DELETE) String delete,
       MultiDeleteRequest request
   ) throws OS3Exception, IOException {
-    S3GAction s3GAction = S3GAction.MULTI_DELETE;
+    S3RequestContext context = new S3RequestContext(this, S3GAction.MULTI_DELETE);
 
     OzoneBucket bucket = getBucket(bucketName);
     MultiDeleteResponse result = new MultiDeleteResponse();
@@ -449,7 +448,7 @@ public class BucketEndpoint extends EndpointBase {
       for (DeleteObject keyToDelete : request.getObjects()) {
         deleteKeys.add(keyToDelete.getKey());
       }
-      long startNanos = Time.monotonicNowNanos();
+      long startNanos = context.getStartNanos();
       try {
         S3Owner.verifyBucketOwnerCondition(getHeaders(), bucketName, bucket.getOwner());
         undeletedKeyResultMap = bucket.deleteKeys(deleteKeys, true);
@@ -477,7 +476,7 @@ public class BucketEndpoint extends EndpointBase {
       }
     }
 
-    AuditMessage.Builder message = auditMessageFor(s3GAction);
+    AuditMessage.Builder message = auditMessageFor(context.getAction());
     message.getParams().put("failedDeletes", deleteKeys.toString());
 
     if (!result.getErrors().isEmpty()) {
