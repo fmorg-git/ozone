@@ -964,7 +964,10 @@ public class ObjectEndpoint extends ObjectOperationHandler {
 
       if (copyHeader != null) {
         getMetrics().updateCopyObjectSuccessStats(startNanos);
-        return Response.ok(new CopyPartResult(eTag)).build();
+        final Instant lastModified = omMultipartCommitUploadPartInfo.getModificationTime().isPresent()
+            ? Instant.ofEpochMilli(omMultipartCommitUploadPartInfo.getModificationTime().getAsLong())
+            : Instant.now();
+        return Response.ok(new CopyPartResult(eTag, lastModified)).build();
       } else {
         getMetrics().updateCreateMultipartKeySuccessStats(startNanos);
         return Response.ok().header(HttpHeaders.ETAG, eTag).build();
@@ -989,6 +992,24 @@ public class ObjectEndpoint extends ObjectOperationHandler {
         throw os3Exception;
       }
       throw ex;
+    } catch (IOException ex) {
+      // Ensure we handle permission failures - these can surface as IOException wrapping OMException.
+      if (copyHeader != null) {
+        getMetrics().updateCopyObjectFailureStats(startNanos);
+      } else {
+        getMetrics().updateCreateMultipartKeyFailureStats(startNanos);
+      }
+      final OMException omEx = findOMException(ex);
+      if (omEx != null) {
+        if (omEx.getResult() == ResultCodes.NO_SUCH_MULTIPART_UPLOAD_ERROR) {
+          throw newError(NO_SUCH_UPLOAD, uploadID, omEx);
+        } else if (isExpiredToken(omEx)) {
+          throw newError(S3ErrorTable.EXPIRED_TOKEN, bucketName + "/" + key, omEx);
+        } else if (isAccessDenied(omEx)) {
+          throw newError(S3ErrorTable.ACCESS_DENIED, bucketName + "/" + key, omEx);
+        }
+      }
+      throw ex;
     } finally {
       // Reset the thread-local message digest instance in case of exception
       // and MessageDigest#digest is never called
@@ -998,8 +1019,19 @@ public class ObjectEndpoint extends ObjectOperationHandler {
     }
   }
 
+  private static OMException findOMException(Throwable t) {
+    Throwable currentException = t;
+    while (currentException != null) {
+      if (currentException instanceof OMException) {
+        return (OMException) currentException;
+      }
+      currentException = currentException.getCause();
+    }
+    return null;
+  }
+
   @SuppressWarnings("checkstyle:ParameterNumber")
-  void copy(OzoneVolume volume, DigestInputStream src, long srcKeyLen,
+  CopyResult copy(OzoneVolume volume, DigestInputStream src, long srcKeyLen,
       String destKey, String destBucket,
       ReplicationConfig replication,
       Map<String, String> metadata,
@@ -1007,14 +1039,20 @@ public class ObjectEndpoint extends ObjectOperationHandler {
       Map<String, String> tags)
       throws IOException {
     long copyLength;
+    final String eTag;
+    final long modificationTime;
     if (isDatastreamEnabled() && !(replication != null &&
         replication.getReplicationType() == EC) &&
         srcKeyLen > getDatastreamMinLength()) {
       perf.appendStreamMode();
-      copyLength = ObjectEndpointStreaming
+      final CopyResult copyResult = ObjectEndpointStreaming
           .copyKeyWithStream(volume.getBucket(destBucket), destKey, srcKeyLen,
               getChunkSize(), replication, metadata, src, perf, startNanos, tags);
+      eTag = copyResult.getETag();
+      copyLength = copyResult.getSize();
+      modificationTime = copyResult.getModificationTime();
     } else {
+      Map<String, String> destMetadata;
       try (OzoneOutputStream dest = getClientProtocol()
           .createKey(volume.getName(), destBucket, destKey, srcKeyLen,
               replication, metadata, tags)) {
@@ -1022,12 +1060,16 @@ public class ObjectEndpoint extends ObjectOperationHandler {
             getMetrics().updateCopyKeyMetadataStats(startNanos);
         perf.appendMetaLatencyNanos(metadataLatencyNs);
         copyLength = IOUtils.copyLarge(src, dest, 0, srcKeyLen, new byte[getIOBufferSize(srcKeyLen)]);
-        final String md5Hash = DatatypeConverter.printHexBinary(src.getMessageDigest().digest()).toLowerCase();
-        dest.getMetadata().put(OzoneConsts.ETAG, md5Hash);
+        eTag = DatatypeConverter.printHexBinary(src.getMessageDigest().digest()).toLowerCase();
+        destMetadata = dest.getMetadata();
+        destMetadata.put(OzoneConsts.ETAG, eTag);
       }
+
+      modificationTime = S3Utils.getModificationTimeOrDefault(destMetadata, Time.now());
     }
     getMetrics().incCopyObjectSuccessLength(copyLength);
     perf.appendSizeBytes(copyLength);
+    return new CopyResult(eTag, copyLength, modificationTime);
   }
 
   private CopyObjectResponse copyObject(OzoneVolume volume,
@@ -1118,19 +1160,16 @@ public class ObjectEndpoint extends ObjectOperationHandler {
               "GetObject", () -> getClientProtocol().getKey(volume.getName(), sourceBucket, sourceKey));
            DigestInputStream sourceDigestInputStream = new DigestInputStream(src, md5Digest)) {
         getMetrics().updateCopyKeyMetadataStats(startNanos);
-        runWithS3ActionString("PutObject", () -> {
+        final CopyResult copyResult = runWithS3ActionString("PutObject", () -> {
           copy(volume, sourceDigestInputStream, sourceKeyLen, destkey, destBucket,
               replicationConfig, customMetadata, perf, startNanos, tags);
           return null;
         });
 
-        final OzoneKeyDetails destKeyDetails = getClientProtocol().getKeyDetails(
-            volume.getName(), destBucket, destkey);
-
         getMetrics().updateCopyObjectSuccessStats(startNanos);
         CopyObjectResponse copyObjectResponse = new CopyObjectResponse();
-        copyObjectResponse.setETag(wrapInQuotes(destKeyDetails.getMetadata().get(OzoneConsts.ETAG)));
-        copyObjectResponse.setLastModified(destKeyDetails.getModificationTime());
+        copyObjectResponse.setETag(wrapInQuotes(copyResult.getETag()));
+        copyObjectResponse.setLastModified(Instant.ofEpochMilli(copyResult.getModificationTime()));
         return copyObjectResponse;
       }
     } catch (OMException ex) {

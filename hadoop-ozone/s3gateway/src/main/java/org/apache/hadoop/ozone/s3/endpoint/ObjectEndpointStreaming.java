@@ -158,7 +158,7 @@ final class ObjectEndpointStreaming {
   }
 
   @SuppressWarnings("checkstyle:ParameterNumber")
-  public static long copyKeyWithStream(
+  public static CopyResult copyKeyWithStream(
       OzoneBucket bucket,
       String keyPath,
       long length,
@@ -169,17 +169,22 @@ final class ObjectEndpointStreaming {
       Map<String, String> tags)
       throws IOException {
     long writeLen;
+    String eTag;
+    Map<String, String> metadata;
     try (OzoneDataStreamOutput streamOutput = bucket.createStreamKey(keyPath,
         length, replicationConfig, keyMetadata, tags)) {
       long metadataLatencyNs =
           METRICS.updateCopyKeyMetadataStats(startNanos);
       writeLen = writeToStreamOutput(streamOutput, body, bufferSize, length);
-      String eTag = DatatypeConverter.printHexBinary(body.getMessageDigest().digest())
+      eTag = DatatypeConverter.printHexBinary(body.getMessageDigest().digest())
           .toLowerCase();
       perf.appendMetaLatencyNanos(metadataLatencyNs);
-      ((KeyMetadataAware)streamOutput).getMetadata().put(OzoneConsts.ETAG, eTag);
+      metadata = streamOutput.getMetadata();
+      metadata.put(OzoneConsts.ETAG, eTag);
     }
-    return writeLen;
+
+    final long modificationTime = S3Utils.getModificationTimeOrDefault(metadata, Time.now());
+    return new CopyResult(eTag, writeLen, modificationTime);
   }
 
   private static long writeToStreamOutput(OzoneDataStreamOutput streamOutput,
