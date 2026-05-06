@@ -130,6 +130,8 @@ public class TestOzoneManagerListPartsAcls {
     verify(omMetadataReader, never()).checkAcls(any(), any(), any(), any(), any(), any());
     verify(keyManager).listParts(
         eq(REAL_VOLUME), eq(REAL_BUCKET), eq(KEY_NAME), eq(UPLOAD_ID), eq(0), eq(10));
+    verify(metrics).incNumListMultipartUploadParts();
+    verify(metrics, never()).incNumListMultipartUploadPartFails();
   }
 
   @Test
@@ -149,7 +151,7 @@ public class TestOzoneManagerListPartsAcls {
   }
 
   @Test
-  void testReadAclAccessDeniedSkipsKeyManagerAndKeyReadAclChecksAndNoMetrics() throws Exception {
+  void testReadAclAccessDeniedSkipsKeyManagerAndKeyReadAclChecksAndRecordsFailure() throws Exception {
     setupS3Request();
     when(omSpy.getAclsEnabled()).thenReturn(true);
 
@@ -163,12 +165,13 @@ public class TestOzoneManagerListPartsAcls {
     verify(keyManager, never()).listParts(
         anyString(), anyString(), anyString(), anyString(), anyInt(), anyInt());
     verify(metrics, never()).incNumListMultipartUploadParts();
-    verify(metrics, never()).incNumListMultipartUploadPartFails();
+    verify(metrics).incNumListMultipartUploadPartFails();
+    verify(omSpy).buildAuditMessageForFailure(any(), anyMap(), any(Throwable.class));
     verify(omMetadataReader, never()).checkAcls(KEY, OZONE, READ, REAL_VOLUME, REAL_BUCKET, KEY_NAME);
   }
 
   @Test
-  void testKeyReadAclAccessDeniedSkipsKeyManagerAndNoMetrics() throws Exception {
+  void testKeyReadAclAccessDeniedSkipsKeyManagerAndRecordsFailure() throws Exception {
     setupS3Request();
     when(omSpy.getAclsEnabled()).thenReturn(true);
 
@@ -183,7 +186,8 @@ public class TestOzoneManagerListPartsAcls {
     verify(keyManager, never()).listParts(
         anyString(), anyString(), anyString(), anyString(), anyInt(), anyInt());
     verify(metrics, never()).incNumListMultipartUploadParts();
-    verify(metrics, never()).incNumListMultipartUploadPartFails();
+    verify(metrics).incNumListMultipartUploadPartFails();
+    verify(omSpy).buildAuditMessageForFailure(any(), anyMap(), any(Throwable.class));
   }
 
   private void setupS3Request() {

@@ -3942,28 +3942,28 @@ public final class OzoneManager extends ServiceRuntimeInfoImpl
     final String realVolumeName = bucket.realVolume();
     final String realBucketName = bucket.realBucket();
 
-    if (getAclsEnabled()) {
-      omMetadataReader.checkAcls(
-          ResourceType.BUCKET, StoreType.OZONE, ACLType.READ, realVolumeName, realBucketName, null);
-      omMetadataReader.checkAcls(
-          ResourceType.KEY, StoreType.OZONE, ACLType.READ, realVolumeName, realBucketName, keyName);
-    }
-
     final Map<String, String> auditMap = bucket.audit();
-    auditMap.put(OzoneConsts.KEY, keyName);
-    auditMap.put(OzoneConsts.UPLOAD_ID, uploadID);
-    auditMap.put(OzoneConsts.PART_NUMBER_MARKER,
-        Integer.toString(partNumberMarker));
-    auditMap.put(OzoneConsts.MAX_PARTS, Integer.toString(maxParts));
-
-    metrics.incNumListMultipartUploadParts();
     try {
+      auditMap.put(OzoneConsts.KEY, keyName);
+      auditMap.put(OzoneConsts.UPLOAD_ID, uploadID);
+      auditMap.put(OzoneConsts.PART_NUMBER_MARKER,
+          Integer.toString(partNumberMarker));
+      auditMap.put(OzoneConsts.MAX_PARTS, Integer.toString(maxParts));
+
+      if (getAclsEnabled()) {
+        omMetadataReader.checkAcls(
+            ResourceType.BUCKET, StoreType.OZONE, ACLType.READ, realVolumeName, realBucketName, null);
+        omMetadataReader.checkAcls(
+            ResourceType.KEY, StoreType.OZONE, ACLType.READ, realVolumeName, realBucketName, keyName);
+      }
+
+      metrics.incNumListMultipartUploadParts();
       final OmMultipartUploadListParts omMultipartUploadListParts = keyManager.listParts(
           realVolumeName, realBucketName, keyName, uploadID, partNumberMarker, maxParts);
       AUDIT.logReadSuccess(buildAuditMessageForSuccess(OMAction
           .LIST_MULTIPART_UPLOAD_PARTS, auditMap));
       return omMultipartUploadListParts;
-    } catch (IOException ex) {
+    } catch (Exception ex) {
       metrics.incNumListMultipartUploadPartFails();
       AUDIT.logReadFailure(buildAuditMessageForFailure(OMAction
           .LIST_MULTIPART_UPLOAD_PARTS, auditMap, ex));
