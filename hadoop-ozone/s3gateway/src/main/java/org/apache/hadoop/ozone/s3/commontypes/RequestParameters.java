@@ -17,6 +17,8 @@
 
 package org.apache.hadoop.ozone.s3.commontypes;
 
+import java.util.Collections;
+import java.util.Set;
 import javax.ws.rs.core.MultivaluedMap;
 import org.apache.hadoop.ozone.s3.exception.S3ErrorTable;
 
@@ -52,6 +54,9 @@ public interface RequestParameters {
    * an empty string (eg. {@code delimiter=}).
    */
   boolean containsKey(String key);
+
+  /** Returns a read-only view of the query parameter names present on the request. */
+  Set<String> keySet();
 
   /** Additional methods for tests. */
   interface Mutable extends RequestParameters {
@@ -95,6 +100,11 @@ public interface RequestParameters {
     @Override
     public boolean containsKey(String key) {
       return params.containsKey(key);
+    }
+
+    @Override
+    public Set<String> keySet() {
+      return Collections.unmodifiableSet(params.keySet());
     }
 
     @Override

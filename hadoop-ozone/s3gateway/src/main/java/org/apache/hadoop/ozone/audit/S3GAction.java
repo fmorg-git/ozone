@@ -63,6 +63,8 @@ public enum S3GAction implements AuditAction {
   PUT_BUCKET_TAGGING,
   DELETE_BUCKET_TAGGING,
   PUT_OBJECT_ACL,
+  GET_OBJECT_ACL,
+  UNSUPPORTED_SUBRESOURCE,
 
   // STS endpoint
   ASSUME_ROLE,

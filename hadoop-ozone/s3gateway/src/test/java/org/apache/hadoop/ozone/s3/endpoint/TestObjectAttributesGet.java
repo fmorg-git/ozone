@@ -27,6 +27,7 @@ import static org.apache.hadoop.ozone.s3.endpoint.EndpointTestUtils.initiateMult
 import static org.apache.hadoop.ozone.s3.endpoint.EndpointTestUtils.put;
 import static org.apache.hadoop.ozone.s3.endpoint.EndpointTestUtils.uploadPart;
 import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.INVALID_ARGUMENT;
+import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.NOT_IMPLEMENTED;
 import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.NO_SUCH_BUCKET;
 import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.NO_SUCH_KEY;
 import static org.apache.hadoop.ozone.s3.util.S3Consts.X_AMZ_CONTENT_SHA256;
@@ -97,6 +98,18 @@ public class TestObjectAttributesGet {
     assertEquals(CONTENT.length(), attributes.getObjectSize().longValue());
     assertEquals("STANDARD", attributes.getStorageClass());
     assertNull(attributes.getObjectParts());
+  }
+
+  @Test
+  public void testGetObjectAttributesRejectsVersionId() throws IOException, OS3Exception {
+    assertSucceeds(() -> put(rest, BUCKET_NAME, KEY_NAME, CONTENT));
+    rest.queryParamsForTest().set(S3Consts.QueryParams.VERSION_ID, "version-id");
+
+    // Ozone has no object versioning, so the attributes of the current version must not be
+    // returned for a versioned request.
+    final OS3Exception exception = assertErrorResponse(NOT_IMPLEMENTED,
+        () -> getObjectAttributes(rest, BUCKET_NAME, KEY_NAME, "ETag"));
+    assertEquals(S3Consts.QueryParams.VERSION_ID, exception.getResource());
   }
 
   @Test

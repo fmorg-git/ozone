@@ -17,6 +17,7 @@
 
 package org.apache.hadoop.ozone.s3.endpoint;
 
+import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.INVALID_ARGUMENT;
 import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.NO_SUCH_UPLOAD;
 import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.newError;
 import static org.apache.hadoop.ozone.s3.util.S3Consts.QueryParams;
@@ -48,20 +49,14 @@ class MultipartKeyHandler extends ObjectOperationHandler {
       throws IOException, OS3Exception {
 
     final String uploadId = queryParams().get(QueryParams.UPLOAD_ID);
-    if (uploadId == null) {
-      // not MPU -> let next handler run
-      return null;
-    }
-
     context.setAction(S3GAction.LIST_PARTS);
 
-    final int maxParts = queryParams().getInt(QueryParams.MAX_PARTS, 1000);
-    final String partNumberMarker = queryParams().get(QueryParams.PART_NUMBER_MARKER);
     final AuditLogger.PerformanceStringBuilder perf = context.getPerf();
 
     try {
-      int partMarker = parsePartNumberMarker(partNumberMarker);
-      Response response = listParts(context.getBucket(), keyPath, uploadId,
+        final int maxParts = validateMaxParts(queryParams().getInt(QueryParams.MAX_PARTS, 1000));
+      final int partMarker = parseListPartsMarker(queryParams().get(QueryParams.PART_NUMBER_MARKER));
+      final Response response = listParts(context.getBucket(), keyPath, uploadId,
           partMarker, maxParts, perf);
       long opLatencyNs = getMetrics().updateListPartsSuccessStats(context.getStartNanos());
       perf.appendOpLatencyNanos(opLatencyNs);
@@ -78,19 +73,14 @@ class MultipartKeyHandler extends ObjectOperationHandler {
       throws IOException, OS3Exception {
 
     final String uploadId = queryParams().get(QueryParams.UPLOAD_ID);
-    if (StringUtils.isEmpty(uploadId)) {
-      // not MPU -> let next handler run
-      return null;
-    }
-
     context.setAction(S3GAction.ABORT_MULTIPART_UPLOAD);
 
     try {
-      Response r = abortMultipartUpload(context.getVolume(),
+        final Response response = abortMultipartUpload(context.getVolume(),
           context.getBucketName(), keyPath, uploadId);
 
       getMetrics().updateAbortMultipartUploadSuccessStats(context.getStartNanos());
-      return r;
+      return response;
 
     } catch (IOException | RuntimeException ex) {
       getMetrics().updateAbortMultipartUploadFailureStats(context.getStartNanos());
@@ -173,5 +163,28 @@ class MultipartKeyHandler extends ObjectOperationHandler {
 
     perf.appendCount(resp.getPartList().size());
     return Response.status(Status.OK).entity(resp).build();
+  }
+
+  /** {@code max-parts=0} is a valid request for an empty page, so only negative values are rejected. */
+  private static int validateMaxParts(int maxParts) throws OS3Exception {
+    if (maxParts < 0) {
+      throw newError(INVALID_ARGUMENT, String.valueOf(maxParts));
+    }
+    return Math.min(maxParts, 1000);
+  }
+
+  private static int parseListPartsMarker(String partNumberMarker) throws OS3Exception {
+    if (partNumberMarker == null) {
+      return 0;
+    }
+    try {
+      final int marker = Integer.parseInt(partNumberMarker);
+      if (marker < 0) {
+        throw newError(INVALID_ARGUMENT, partNumberMarker);
+      }
+      return marker;
+    } catch (NumberFormatException ex) {
+      throw newError(INVALID_ARGUMENT, partNumberMarker, ex);
+    }
   }
 }

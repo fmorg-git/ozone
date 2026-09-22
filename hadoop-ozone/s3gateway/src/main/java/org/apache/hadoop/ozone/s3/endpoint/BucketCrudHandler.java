@@ -22,9 +22,7 @@ import java.io.InputStream;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import org.apache.hadoop.ozone.audit.S3GAction;
-import org.apache.hadoop.ozone.client.OzoneBucket;
 import org.apache.hadoop.ozone.s3.exception.OS3Exception;
-import org.apache.hadoop.ozone.s3.util.S3Consts.QueryParams;
 import org.apache.http.HttpStatus;
 
 /**
@@ -42,28 +40,15 @@ import org.apache.http.HttpStatus;
 public class BucketCrudHandler extends BucketOperationHandler {
 
   /**
-   * Handle only plain PUT bucket (create bucket), not subresources.
-   */
-  private boolean shouldHandle() {
-    return queryParams().get(QueryParams.ACL) == null
-        && queryParams().get(QueryParams.UPLOADS) == null
-        && queryParams().get(QueryParams.DELETE) == null
-        && queryParams().get(QueryParams.TAGGING) == null
-        && queryParams().get(QueryParams.LIFECYCLE) == null;
-  }
-
-  /**
    * Handle PUT /{bucket} for bucket creation.
    */
   @Override
   Response handlePutRequest(S3RequestContext context, String bucketName, InputStream body)
       throws IOException, OS3Exception {
 
-    if (!shouldHandle()) {
-      return null;
-    }
-
     context.setAction(S3GAction.CREATE_BUCKET);
+    // CreateBucket has no existing bucket to read an owner from, so AWS ignores
+    // x-amz-expected-bucket-owner here. Satisfy the router's invariant directly.
 
     try {
       getClient().getObjectStore().createS3Bucket(bucketName);
@@ -84,18 +69,10 @@ public class BucketCrudHandler extends BucketOperationHandler {
   Response handleDeleteRequest(S3RequestContext context, String bucketName)
       throws IOException, OS3Exception {
 
-    if (!shouldHandle()) {
-      return null;
-    }
-
     context.setAction(S3GAction.DELETE_BUCKET);
 
     try {
-      if (S3Owner.hasBucketOwnershipVerificationConditions(getHeaders())) {
-        OzoneBucket bucket = context.getVolume().getBucket(bucketName);
-        S3Owner.verifyBucketOwnerCondition(getHeaders(), bucketName, bucket.getOwner());
-      }
-      context.getVolume().deleteBucket(bucketName);
+        context.getVolume().deleteBucket(bucketName);
     } catch (Exception ex) {
       getMetrics().updateDeleteBucketFailureStats(context.getStartNanos());
       throw ex;

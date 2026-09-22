@@ -27,13 +27,17 @@ import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.newError;
 import static org.apache.hadoop.ozone.s3.util.S3Consts.ENCODING_TYPE;
 import static org.apache.hadoop.ozone.s3.util.S3Utils.wrapInQuotes;
 
+import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.HEAD;
@@ -77,6 +81,20 @@ public class BucketEndpoint extends BucketOperationHandler {
 
   private static final String BUCKET = "bucket";
 
+  private static final Set<String> BUCKET_GET_PARAMS = ImmutableSet.of(
+      QueryParams.LIST_TYPE,
+      QueryParams.PREFIX,
+      QueryParams.DELIMITER,
+      QueryParams.MAX_KEYS,
+      QueryParams.MARKER,
+      QueryParams.CONTINUATION_TOKEN,
+      QueryParams.START_AFTER,
+      QueryParams.FETCH_OWNER,
+      QueryParams.ENCODING_TYPE);
+
+  private static final Set<String> BUCKET_MULTI_DELETE_POST_SELECTORS =
+      ImmutableSet.of(QueryParams.DELETE);
+
   private static final Logger LOG =
       LoggerFactory.getLogger(BucketEndpoint.class);
 
@@ -84,6 +102,7 @@ public class BucketEndpoint extends BucketOperationHandler {
   private int maxKeysLimit = 1000;
 
   private BucketOperationHandler handler;
+  private BucketOperationHandlerRouter subresourceRouter;
 
   /**
    * Rest endpoint to list objects in a specific bucket.
@@ -140,8 +159,7 @@ public class BucketEndpoint extends BucketOperationHandler {
       boolean shallow = listKeysShallowEnabled
           && OZONE_URI_DELIMITER.equals(delimiter);
 
-      bucket = context.getVolume().getBucket(bucketName);
-      S3Owner.verifyBucketOwnerCondition(getHeaders(), bucketName, bucket.getOwner());
+      bucket = context.getBucket(bucketName);
 
       ozoneKeyIterator = bucket.listKeys(prefix, prevKey, shallow);
     } catch (OMException ex) {
@@ -279,11 +297,6 @@ public class BucketEndpoint extends BucketOperationHandler {
     }
   }
 
-  @Override
-  Response handlePutRequest(S3RequestContext context, String bucketName, InputStream body) {
-    throw newError(S3ErrorTable.NOT_IMPLEMENTED, "PUT bucket");
-  }
-
   /**
    * Rest endpoint to check the existence of a bucket.
    * <p>
@@ -293,18 +306,26 @@ public class BucketEndpoint extends BucketOperationHandler {
   @HEAD
   public Response head(@PathParam(BUCKET) String bucketName)
       throws OS3Exception, IOException {
-    S3RequestContext context = new S3RequestContext(this, S3GAction.HEAD_BUCKET);
-    long startNanos = context.getStartNanos();
+    final S3RequestContext context = new S3RequestContext(this, S3GAction.HEAD_BUCKET);
+    final long startNanos = context.getStartNanos();
     try {
-      OzoneBucket bucket = getVolume().getBucket(bucketName);
+      validateHeadSubresourceSelectors(context, bucketName);
+    } catch (IOException | RuntimeException ex) {
+      getMetrics().updateHeadBucketFailureStats(startNanos);
+      throw ex;
+    }
+    try {
+      final OzoneBucket bucket = context.getBucket(bucketName);
       S3Owner.verifyBucketOwnerCondition(getHeaders(), bucketName, bucket.getOwner());
       auditReadSuccess(context.getAction());
       getMetrics().updateHeadBucketSuccessStats(startNanos);
       return Response.ok().build();
     } catch (OMException e) {
+      getMetrics().updateHeadBucketFailureStats(startNanos);
       auditReadFailure(context.getAction(), e);
       throw newError(bucketName, e);
     } catch (Exception e) {
+      getMetrics().updateHeadBucketFailureStats(startNanos);
       auditReadFailure(context.getAction(), e);
       throw e;
     }
@@ -327,11 +348,6 @@ public class BucketEndpoint extends BucketOperationHandler {
     }
   }
 
-  @Override
-  Response handleDeleteRequest(S3RequestContext context, String bucketName) {
-    throw newError(S3ErrorTable.NOT_IMPLEMENTED, "DELETE bucket");
-  }
-
   /**
    * Implement multi delete.
    * <p>
@@ -345,8 +361,7 @@ public class BucketEndpoint extends BucketOperationHandler {
       @QueryParam(QueryParams.DELETE) String delete,
       MultiDeleteRequest request
   ) throws OS3Exception, IOException {
-    S3RequestContext context = new S3RequestContext(this, S3GAction.MULTI_DELETE);
-
+    final S3RequestContext context = new S3RequestContext(this, S3GAction.MULTI_DELETE);
     if (request.getObjects() != null
         && request.getObjects().size() > S3Consts.S3_DELETE_OBJECTS_MAX_KEYS) {
       throw newError(S3ErrorTable.MALFORMED_XML, bucketName);
@@ -446,17 +461,32 @@ public class BucketEndpoint extends BucketOperationHandler {
         OZONE_S3G_LIST_MAX_KEYS_LIMIT,
         OZONE_S3G_LIST_MAX_KEYS_LIMIT_DEFAULT);
 
-    // initialize handlers
-    BucketOperationHandler chain = BucketOperationHandlerChain.newBuilder(this)
-        .add(new BucketGetLocationHandler())
-        .add(new BucketAclHandler())
-        .add(new ListMultipartUploadsHandler())
-        .add(new BucketTaggingHandler())
-        .add(new BucketLifecycleHandler())
-        .add(new BucketCrudHandler())
-        .add(this)
+    final BucketCrudHandler crudHandler = new BucketCrudHandler();
+    final BucketAclHandler aclHandler = new BucketAclHandler();
+    final BucketTaggingHandler taggingHandler = new BucketTaggingHandler();
+    final BucketLifecycleHandler lifecycleHandler = new BucketLifecycleHandler();
+    subresourceRouter = new BucketOperationHandlerRouter.Builder()
+        .get(QueryParams.LOCATION, new BucketGetLocationHandler())
+        .get(QueryParams.ACL, aclHandler)
+        .put(QueryParams.ACL, aclHandler)
+        .get(QueryParams.UPLOADS, new ListMultipartUploadsHandler())
+        .get(QueryParams.TAGGING, taggingHandler)
+        .put(QueryParams.TAGGING, taggingHandler)
+        .delete(QueryParams.TAGGING, taggingHandler)
+        .get(QueryParams.LIFECYCLE, lifecycleHandler)
+        .put(QueryParams.LIFECYCLE, lifecycleHandler)
+        .delete(QueryParams.LIFECYCLE, lifecycleHandler)
+        .plainGet(this, BUCKET_GET_PARAMS)
+        .plainPut(crudHandler, Collections.emptySet())
+        .plainDelete(crudHandler, Collections.emptySet())
         .build();
-    handler = new AuditingBucketOperationHandler(chain);
+    // Wire the router first: the auditing wrapper inherits its dependencies from the delegate.
+    subresourceRouter.refreshDependencies(this);
+    handler = new AuditingBucketOperationHandler(subresourceRouter);
+  }
+
+  BucketOperationHandlerRouter subresourceRouterForTest() {
+    return subresourceRouter;
   }
 
   private void handleOMException(OMException ex, String bucketName, String prefix) throws OMException {

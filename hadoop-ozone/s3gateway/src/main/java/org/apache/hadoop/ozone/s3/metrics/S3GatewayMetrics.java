@@ -57,6 +57,7 @@ public final class S3GatewayMetrics implements Closeable, MetricsSource {
   private @Metric MutableCounterLong createBucketSuccess;
   private @Metric MutableCounterLong createBucketFailure;
   private @Metric MutableCounterLong headBucketSuccess;
+  private @Metric MutableCounterLong headBucketFailure;
   private @Metric MutableCounterLong deleteBucketSuccess;
   private @Metric MutableCounterLong deleteBucketFailure;
   private @Metric MutableCounterLong getAclSuccess;
@@ -109,8 +110,10 @@ public final class S3GatewayMetrics implements Closeable, MetricsSource {
   private @Metric MutableCounterLong deleteBucketTaggingFailure;
   private @Metric MutableCounterLong putObjectAclSuccess;
   private @Metric MutableCounterLong putObjectAclFailure;
+  private @Metric MutableCounterLong getObjectAclFailure;
   private @Metric MutableCounterLong getObjectAttributesSuccess;
   private @Metric MutableCounterLong getObjectAttributesFailure;
+  private @Metric MutableCounterLong subresourceRoutingFailure;
 
   // S3 Gateway Latency Metrics
   // BucketEndpoint
@@ -132,6 +135,9 @@ public final class S3GatewayMetrics implements Closeable, MetricsSource {
   @Metric(about = "Latency for successfully checking the existence of an " +
       "S3 bucket in nanoseconds")
   private PerformanceMetrics headBucketSuccessLatencyNs;
+
+  @Metric(about = "Latency for failing to check the existence of an S3 bucket in nanoseconds")
+  private PerformanceMetrics headBucketFailureLatencyNs;
 
   @Metric(about = "Latency for successfully deleting an S3 bucket in " +
       "nanoseconds")
@@ -306,11 +312,17 @@ public final class S3GatewayMetrics implements Closeable, MetricsSource {
       "in nanoseconds")
   private PerformanceMetrics putObjectAclFailureLatencyNs;
 
+  @Metric(about = "Latency for failing to get an S3 object ACL in nanoseconds")
+  private PerformanceMetrics getObjectAclFailureLatencyNs;
+
   @Metric(about = "Latency for successfully getting S3 object attributes in nanoseconds")
   private PerformanceMetrics getObjectAttributesSuccessLatencyNs;
 
   @Metric(about = "Latency for failing to get S3 object attributes in nanoseconds")
   private PerformanceMetrics getObjectAttributesFailureLatencyNs;
+
+  @Metric(about = "Latency for failing to route an S3 subresource request in nanoseconds")
+  private PerformanceMetrics subresourceRoutingFailureLatencyNs;
 
   private final Map<String, PerformanceMetrics> performanceMetrics;
 
@@ -376,6 +388,8 @@ public final class S3GatewayMetrics implements Closeable, MetricsSource {
     createBucketFailureLatencyNs.snapshot(recordBuilder, true);
     headBucketSuccess.snapshot(recordBuilder, true);
     headBucketSuccessLatencyNs.snapshot(recordBuilder, true);
+    headBucketFailure.snapshot(recordBuilder, true);
+    headBucketFailureLatencyNs.snapshot(recordBuilder, true);
     deleteBucketSuccess.snapshot(recordBuilder, true);
     deleteBucketSuccessLatencyNs.snapshot(recordBuilder, true);
     deleteBucketFailure.snapshot(recordBuilder, true);
@@ -475,10 +489,14 @@ public final class S3GatewayMetrics implements Closeable, MetricsSource {
     putObjectAclSuccessLatencyNs.snapshot(recordBuilder, true);
     putObjectAclFailure.snapshot(recordBuilder, true);
     putObjectAclFailureLatencyNs.snapshot(recordBuilder, true);
+    getObjectAclFailure.snapshot(recordBuilder, true);
+    getObjectAclFailureLatencyNs.snapshot(recordBuilder, true);
     getObjectAttributesSuccess.snapshot(recordBuilder, true);
     getObjectAttributesSuccessLatencyNs.snapshot(recordBuilder, true);
     getObjectAttributesFailure.snapshot(recordBuilder, true);
     getObjectAttributesFailureLatencyNs.snapshot(recordBuilder, true);
+    subresourceRoutingFailure.snapshot(recordBuilder, true);
+    subresourceRoutingFailureLatencyNs.snapshot(recordBuilder, true);
   }
 
   // INC and UPDATE
@@ -507,6 +525,11 @@ public final class S3GatewayMetrics implements Closeable, MetricsSource {
   public void updateHeadBucketSuccessStats(long startNanos) {
     headBucketSuccess.incr();
     headBucketSuccessLatencyNs.add(Time.monotonicNowNanos() - startNanos);
+  }
+
+  public void updateHeadBucketFailureStats(long startNanos) {
+    headBucketFailure.incr();
+    headBucketFailureLatencyNs.add(Time.monotonicNowNanos() - startNanos);
   }
 
   public void updateDeleteBucketSuccessStats(long startNanos) {
@@ -770,6 +793,15 @@ public final class S3GatewayMetrics implements Closeable, MetricsSource {
     this.putObjectAclFailureLatencyNs.add(Time.monotonicNowNanos() - startNanos);
   }
 
+  public void updateGetObjectAclFailureStats(long startNanos) {
+    this.getObjectAclFailure.incr();
+    this.getObjectAclFailureLatencyNs.add(Time.monotonicNowNanos() - startNanos);
+  }
+
+  public long getGetObjectAclFailure() {
+    return getObjectAclFailure.value();
+  }
+
   public void updateGetObjectAttributesSuccessStats(long startNanos) {
     this.getObjectAttributesSuccess.incr();
     this.getObjectAttributesSuccessLatencyNs.add(Time.monotonicNowNanos() - startNanos);
@@ -780,6 +812,15 @@ public final class S3GatewayMetrics implements Closeable, MetricsSource {
     this.getObjectAttributesFailureLatencyNs.add(Time.monotonicNowNanos() - startNanos);
   }
 
+  public void updateSubresourceRoutingFailureStats(long startNanos) {
+    this.subresourceRoutingFailure.incr();
+    this.subresourceRoutingFailureLatencyNs.add(Time.monotonicNowNanos() - startNanos);
+  }
+
+  public long getSubresourceRoutingFailure() {
+    return subresourceRoutingFailure.value();
+  }
+
   // GET
   public long getListS3BucketsSuccess() {
     return listS3BucketsSuccess.value();
@@ -787,6 +828,10 @@ public final class S3GatewayMetrics implements Closeable, MetricsSource {
 
   public long getHeadBucketSuccess() {
     return headBucketSuccess.value();
+  }
+
+  public long getHeadBucketFailure() {
+    return headBucketFailure.value();
   }
 
   public long getHeadKeySuccess() {

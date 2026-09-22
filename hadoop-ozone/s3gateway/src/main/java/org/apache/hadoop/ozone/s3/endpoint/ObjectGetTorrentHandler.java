@@ -25,7 +25,6 @@ import javax.ws.rs.core.Response;
 import org.apache.hadoop.ozone.audit.S3GAction;
 import org.apache.hadoop.ozone.s3.endpoint.ObjectEndpoint.ObjectRequestContext;
 import org.apache.hadoop.ozone.s3.exception.OS3Exception;
-import org.apache.hadoop.ozone.s3.util.S3Consts.QueryParams;
 
 /**
  * Handles GET object {@code ?torrent} ({@code GetObjectTorrent}).
@@ -38,10 +37,6 @@ class ObjectGetTorrentHandler extends ObjectOperationHandler {
   @Override
   Response handleGetRequest(ObjectRequestContext context, String keyName)
       throws IOException, OS3Exception {
-    if (queryParams().get(QueryParams.TORRENT) == null) {
-      return null;
-    }
-
     context.setAction(S3GAction.GET_OBJECT_TORRENT);
     throw newError(NOT_IMPLEMENTED, "GetObjectTorrent");
   }

@@ -48,6 +48,7 @@ import static org.apache.hadoop.ozone.s3.util.S3Utils.validateSignatureHeader;
 import static org.apache.hadoop.ozone.s3.util.S3Utils.wrapInQuotes;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -59,6 +60,7 @@ import java.time.ZonedDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -127,10 +129,26 @@ public class ObjectEndpoint extends ObjectOperationHandler {
   // Default Content-Type for objects stored without one, matching S3.
   private static final String DEFAULT_CONTENT_TYPE = "binary/octet-stream";
 
+  private static final Set<String> OBJECT_GET_PARAMS = ImmutableSet.of(
+      QueryParams.PART_NUMBER,
+      QueryParams.RESPONSE_CONTENT_TYPE,
+      QueryParams.RESPONSE_CONTENT_LANGUAGE,
+      QueryParams.RESPONSE_EXPIRES,
+      QueryParams.RESPONSE_CACHE_CONTROL,
+      QueryParams.RESPONSE_CONTENT_DISPOSITION,
+      QueryParams.RESPONSE_CONTENT_ENCODING);
+
+  private static final Set<String> OBJECT_PUT_PARAMS = ImmutableSet.of(
+      QueryParams.UPLOAD_ID,
+      QueryParams.PART_NUMBER);
+
+  private static final Set<String> OBJECT_DELETE_PARAMS = ImmutableSet.of();
+
   private static final Logger LOG =
       LoggerFactory.getLogger(ObjectEndpoint.class);
 
   private ObjectOperationHandler handler;
+  private ObjectOperationHandlerRouter subresourceRouter;
 
   /*FOR the feature Overriding Response Header
   https://docs.aws.amazon.com/de_de/AmazonS3/latest/API/API_GetObject.html */
@@ -138,26 +156,37 @@ public class ObjectEndpoint extends ObjectOperationHandler {
 
   public ObjectEndpoint() {
     overrideQueryParameter = ImmutableMap.<String, String>builder()
-        .put(HttpHeaders.CONTENT_LANGUAGE, "response-content-language")
-        .put(HttpHeaders.EXPIRES, "response-expires")
-        .put(HttpHeaders.CACHE_CONTROL, "response-cache-control")
-        .put(HttpHeaders.CONTENT_DISPOSITION, "response-content-disposition")
-        .put(HttpHeaders.CONTENT_ENCODING, "response-content-encoding")
+        .put(HttpHeaders.CONTENT_LANGUAGE, QueryParams.RESPONSE_CONTENT_LANGUAGE)
+        .put(HttpHeaders.EXPIRES, QueryParams.RESPONSE_EXPIRES)
+        .put(HttpHeaders.CACHE_CONTROL, QueryParams.RESPONSE_CACHE_CONTROL)
+        .put(HttpHeaders.CONTENT_DISPOSITION, QueryParams.RESPONSE_CONTENT_DISPOSITION)
+        .put(HttpHeaders.CONTENT_ENCODING, QueryParams.RESPONSE_CONTENT_ENCODING)
         .build();
   }
 
   @Override
   protected void init() {
     super.init();
-    ObjectOperationHandler chain = ObjectOperationHandlerChain.newBuilder(this)
-        .add(new ObjectGetTorrentHandler())
-        .add(new ObjectAclHandler())
-        .add(new ObjectTaggingHandler())
-        .add(new ObjectAttributesHandler())
-        .add(new MultipartKeyHandler())
-        .add(this)
+    final ObjectAclHandler aclHandler = new ObjectAclHandler();
+    final ObjectTaggingHandler taggingHandler = new ObjectTaggingHandler();
+    final MultipartKeyHandler multipartKeyHandler = new MultipartKeyHandler();
+    subresourceRouter = new ObjectOperationHandlerRouter.Builder()
+        .get(QueryParams.ACL, aclHandler)
+        .put(QueryParams.ACL, aclHandler)
+        .get(QueryParams.TORRENT, new ObjectGetTorrentHandler())
+        .get(QueryParams.ATTRIBUTES, new ObjectAttributesHandler())
+        .get(QueryParams.TAGGING, taggingHandler)
+        .put(QueryParams.TAGGING, taggingHandler)
+        .delete(QueryParams.TAGGING, taggingHandler)
+        .get(QueryParams.UPLOAD_ID, multipartKeyHandler)
+        .delete(QueryParams.UPLOAD_ID, multipartKeyHandler)
+        .plainGet(this, OBJECT_GET_PARAMS)
+        .plainPut(this, OBJECT_PUT_PARAMS)
+        .plainDelete(this, OBJECT_DELETE_PARAMS)
         .build();
-    handler = new AuditingObjectOperationHandler(chain);
+    // Wire the router first: the auditing wrapper inherits its dependencies from the delegate.
+    subresourceRouter.refreshDependencies(this);
+    handler = new AuditingObjectOperationHandler(subresourceRouter);
   }
 
   /**
@@ -203,26 +232,28 @@ public class ObjectEndpoint extends ObjectOperationHandler {
     final PerformanceStringBuilder perf = context.getPerf();
     final long startNanos = context.getStartNanos();
 
-    String copyHeader = null;
+    String copyHeader = getHeaders().getHeaderString(COPY_SOURCE_HEADER);
     MultiDigestInputStream multiDigestInputStream = null;
     try {
-      OzoneVolume volume = context.getVolume();
-      OzoneBucket bucket = context.getBucket();
-      final String lengthHeader = getHeaders().getHeaderString(HttpHeaders.CONTENT_LENGTH);
-      long length = lengthHeader != null ? Long.parseLong(lengthHeader) : 0;
-
       if (uploadID != null && !uploadID.equals("")) {
-        if (getHeaders().getHeaderString(COPY_SOURCE_HEADER) == null) {
+        if (copyHeader == null) {
           context.setAction(S3GAction.CREATE_MULTIPART_KEY);
         } else {
           context.setAction(S3GAction.CREATE_MULTIPART_KEY_BY_COPY);
         }
+      } else if (copyHeader != null) {
+        context.setAction(S3GAction.COPY_OBJECT);
+      }
+      final OzoneVolume volume = context.getVolume();
+      final OzoneBucket bucket = context.getBucket();
+      final String lengthHeader = getHeaders().getHeaderString(HttpHeaders.CONTENT_LENGTH);
+      long length = lengthHeader != null ? Long.parseLong(lengthHeader) : 0;
+
+      if (uploadID != null && !uploadID.equals("")) {
         // If uploadID is specified, it is a request for upload part
         return createMultipartKey(volume, bucket, keyPath, length,
             body, perf);
       }
-
-      copyHeader = getHeaders().getHeaderString(COPY_SOURCE_HEADER);
 
       ReplicationConfig replicationConfig = getReplicationConfig(bucket);
 
@@ -234,8 +265,6 @@ public class ObjectEndpoint extends ObjectOperationHandler {
       }
 
       if (copyHeader != null) {
-        //Copy object, as copy source available.
-        context.setAction(S3GAction.COPY_OBJECT);
         CopyObjectResponse copyObjectResponse = copyObject(volume,
             bucketName, keyPath, replicationConfig, perf);
         return Response.status(Status.OK).entity(copyObjectResponse).header(
@@ -384,19 +413,17 @@ public class ObjectEndpoint extends ObjectOperationHandler {
   Response handleGetRequest(ObjectRequestContext context, String keyPath)
       throws IOException, OS3Exception {
 
-    final int partNumber = queryParams().getInt(QueryParams.PART_NUMBER, 0);
-    // A negative part number is not a valid part; reject it as InvalidArgument.
-    if (partNumber < 0) {
-      throw newError(INVALID_ARGUMENT, String.valueOf(partNumber));
-    }
-
     final long startNanos = context.getStartNanos();
     final PerformanceStringBuilder perf = context.getPerf();
 
     try {
-      final String bucketName = context.getBucketName();
-
       context.setAction(S3GAction.GET_KEY);
+      final int partNumber = queryParams().getInt(QueryParams.PART_NUMBER, 0);
+      // A negative part number is not a valid part; reject it as InvalidArgument.
+      if (partNumber < 0) {
+        throw newError(INVALID_ARGUMENT, String.valueOf(partNumber));
+      }
+      final String bucketName = context.getBucketName();
 
       OzoneKeyDetails keyDetails = (partNumber != 0) ?
           getClientProtocol().getS3KeyDetails(bucketName, keyPath, partNumber) :
@@ -482,7 +509,7 @@ public class ObjectEndpoint extends ObjectOperationHandler {
 
       // Content-Type comes from the stored object, not the request header;
       // response-content-type still overrides it.
-      String contentType = queryParams.getFirst("response-content-type");
+      String contentType = queryParams.getFirst(QueryParams.RESPONSE_CONTENT_TYPE);
       if (contentType == null) {
         contentType = contentTypeOf(keyDetails);
       }
@@ -633,16 +660,22 @@ public class ObjectEndpoint extends ObjectOperationHandler {
   public Response head(
       @PathParam(BUCKET) String bucketName,
       @PathParam(PATH) String keyPath) throws IOException, OS3Exception {
-    ObjectRequestContext context = new ObjectRequestContext(S3GAction.HEAD_KEY, bucketName);
-    long startNanos = context.getStartNanos();
-    final int partNumber = queryParams().getInt(QueryParams.PART_NUMBER, 0);
-    // A negative part number is not a valid part; reject it as InvalidArgument.
-    if (partNumber < 0) {
-      throw newError(INVALID_ARGUMENT, String.valueOf(partNumber));
+    final ObjectRequestContext context = new ObjectRequestContext(S3GAction.HEAD_KEY, bucketName);
+    final long startNanos = context.getStartNanos();
+    try {
+      validateHeadSubresourceSelectors(context, bucketName);
+    } catch (IOException | RuntimeException ex) {
+      getMetrics().updateHeadKeyFailureStats(startNanos);
+      throw ex;
     }
+    final int partNumber = queryParams().getInt(QueryParams.PART_NUMBER, 0);
 
     OzoneKey key;
     try {
+      // A negative part number is not a valid part; reject it as InvalidArgument.
+      if (partNumber < 0) {
+        throw newError(INVALID_ARGUMENT, String.valueOf(partNumber));
+      }
       if (S3Owner.hasBucketOwnershipVerificationConditions(getHeaders())) {
         OzoneBucket bucket = getVolume().getBucket(bucketName);
         S3Owner.verifyBucketOwnerCondition(getHeaders(), bucketName, bucket.getOwner());
@@ -679,6 +712,7 @@ public class ObjectEndpoint extends ObjectOperationHandler {
       }
     } catch (Exception ex) {
       auditReadFailure(context.getAction(), ex);
+      getMetrics().updateHeadKeyFailureStats(startNanos);
       throw ex;
     }
 
@@ -779,8 +813,8 @@ public class ObjectEndpoint extends ObjectOperationHandler {
       @PathParam(BUCKET) String bucket,
       @PathParam(PATH) String key
   ) throws IOException, OS3Exception {
-    ObjectRequestContext context = new ObjectRequestContext(S3GAction.INIT_MULTIPART_UPLOAD, bucket);
-    long startNanos = context.getStartNanos();
+    final ObjectRequestContext context = new ObjectRequestContext(S3GAction.INIT_MULTIPART_UPLOAD, bucket);
+    final long startNanos = context.getStartNanos();
 
     try {
       OzoneBucket ozoneBucket = getVolume().getBucket(bucket);
@@ -830,10 +864,10 @@ public class ObjectEndpoint extends ObjectOperationHandler {
       @PathParam(PATH) String key,
       CompleteMultipartUploadRequest multipartUploadRequest
   ) throws IOException, OS3Exception {
-    ObjectRequestContext context = new ObjectRequestContext(S3GAction.COMPLETE_MULTIPART_UPLOAD, bucket);
+    final ObjectRequestContext context = new ObjectRequestContext(S3GAction.COMPLETE_MULTIPART_UPLOAD, bucket);
     final String uploadID = queryParams().get(QueryParams.UPLOAD_ID, "");
-    long startNanos = context.getStartNanos();
-    List<CompleteMultipartUploadRequest.Part> partList =
+    final long startNanos = context.getStartNanos();
+    final List<CompleteMultipartUploadRequest.Part> partList =
         multipartUploadRequest.getPartList();
     // Using LinkedHashMap to preserve ordering of parts list.
     Map<Integer, String> partsMap = new LinkedHashMap<>();
@@ -1335,7 +1369,6 @@ public class ObjectEndpoint extends ObjectOperationHandler {
   /** Request context shared among {@code ObjectOperationHandler}s. */
   final class ObjectRequestContext extends S3RequestContext {
     private final String bucketName;
-    private OzoneBucket bucket;
 
     /** @param action best guess on action based on request method, may be refined later by handlers */
     ObjectRequestContext(S3GAction action, String bucketName) {
@@ -1348,11 +1381,7 @@ public class ObjectEndpoint extends ObjectOperationHandler {
     }
 
     OzoneBucket getBucket() throws IOException {
-      if (bucket == null) {
-        bucket = getVolume().getBucket(bucketName);
-      }
-      return bucket;
+      return getBucket(bucketName);
     }
-
   }
 }

@@ -21,9 +21,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import javax.ws.rs.core.Response;
 import org.apache.hadoop.ozone.s3.endpoint.ObjectEndpoint.ObjectRequestContext;
+import org.apache.hadoop.ozone.s3.endpoint.SubresourceRouteTable.Scope;
 import org.apache.hadoop.ozone.s3.exception.OS3Exception;
 
-/** Interface for handling object operations using chain of responsibility pattern. */
+/**
+ * Handler for a specific S3 object operation or subresource (e.g. {@code ?tagging},
+ * {@code ?uploadId}). The {@link ObjectOperationHandlerRouter} dispatches requests
+ * to the appropriate handler instance.
+ */
 abstract class ObjectOperationHandler extends EndpointBase {
 
   Response handleDeleteRequest(ObjectRequestContext context, String keyName) throws IOException, OS3Exception {
@@ -34,13 +39,14 @@ abstract class ObjectOperationHandler extends EndpointBase {
     return null;
   }
 
-  Response handleHeadRequest(ObjectRequestContext context, String keyName) throws IOException, OS3Exception {
-    return null;
-  }
-
   Response handlePutRequest(ObjectRequestContext context, String keyName, InputStream body)
       throws IOException, OS3Exception {
     return null;
+  }
+
+  @Override
+  protected Scope subresourceScope() {
+    return Scope.OBJECT;
   }
 
   ObjectOperationHandler copyDependenciesFrom(EndpointBase other) {

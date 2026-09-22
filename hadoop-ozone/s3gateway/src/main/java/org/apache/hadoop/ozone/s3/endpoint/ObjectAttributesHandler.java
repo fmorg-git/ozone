@@ -26,7 +26,6 @@ import static org.apache.hadoop.ozone.s3.util.S3Consts.GET_OBJECT_ATTRIBUTES_MAX
 import static org.apache.hadoop.ozone.s3.util.S3Consts.MAX_PARTS_HEADER;
 import static org.apache.hadoop.ozone.s3.util.S3Consts.OBJECT_ATTRIBUTES_HEADER;
 import static org.apache.hadoop.ozone.s3.util.S3Consts.PART_NUMBER_MARKER_HEADER;
-import static org.apache.hadoop.ozone.s3.util.S3Consts.QueryParams;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -60,8 +59,9 @@ import org.slf4j.LoggerFactory;
  * <p>The {@code Checksum} attribute is not yet supported because Ozone does not store
  * non-MD5 checksum algorithms in key metadata. For general-purpose buckets, {@code Part}
  * elements under {@code ObjectParts} are omitted unless an additional checksum is stored
- * on the object, matching AWS S3 behavior. Object versioning ({@code versionId}) and
- * SSE-C encryption headers are also not supported and are silently ignored.
+ * on the object, matching AWS S3 behavior. A {@code versionId} is rejected with
+ * {@code NotImplemented} by the router because Ozone has no object versioning; SSE-C
+ * encryption headers are not supported and are silently ignored.
  *
  * <p>See https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAttributes.html
  */
@@ -105,22 +105,18 @@ class ObjectAttributesHandler extends ObjectOperationHandler {
   Response handleGetRequest(ObjectRequestContext context, String keyPath)
       throws IOException, OS3Exception {
 
-    if (queryParams().get(QueryParams.ATTRIBUTES) == null) {
-      return null;
-    }
-
     context.setAction(S3GAction.GET_OBJECT_ATTRIBUTES);
 
     final long startNanos = context.getStartNanos();
     try {
-      Set<String> requestedAttributes = parseAttributesHeader(keyPath);
-      String bucketName = context.getBucketName();
+        final Set<String> requestedAttributes = parseAttributesHeader(keyPath);
+      final String bucketName = context.getBucketName();
 
       OzoneKey key;
       NavigableMap<Integer, Long> completedPartSizes = null;
       try {
         if (requestedAttributes.contains(ATTR_OBJECT_PARTS)) {
-          S3HeadObjectAttributes headAttributes =
+          final S3HeadObjectAttributes headAttributes =
               getClientProtocol().headS3ObjectAttributes(bucketName, keyPath);
           key = headAttributes.getKey();
           completedPartSizes = headAttributes.getCompletedMultipartPartSizes();
@@ -137,10 +133,10 @@ class ObjectAttributesHandler extends ObjectOperationHandler {
         throw ex;
       }
 
-      GetObjectAttributesResponse response =
+      final GetObjectAttributesResponse response =
           buildResponse(keyPath, key, requestedAttributes, completedPartSizes);
 
-      Response.ResponseBuilder rb = Response.ok(response, MediaType.APPLICATION_XML_TYPE);
+      final Response.ResponseBuilder rb = Response.ok(response, MediaType.APPLICATION_XML_TYPE);
       ObjectEndpoint.addLastModifiedDate(rb, key);
       getMetrics().updateGetObjectAttributesSuccessStats(startNanos);
       return rb.build();

@@ -28,7 +28,7 @@ class AuditingBucketOperationHandler extends BucketOperationHandler {
 
   AuditingBucketOperationHandler(BucketOperationHandler delegate) {
     this.delegate = delegate;
-    delegate.copyDependenciesTo(this);
+    copyDependenciesFrom(delegate);
   }
 
   @Override

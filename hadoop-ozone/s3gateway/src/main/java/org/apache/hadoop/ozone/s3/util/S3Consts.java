@@ -17,6 +17,8 @@
 
 package org.apache.hadoop.ozone.s3.util;
 
+import com.google.common.collect.ImmutableSet;
+import java.util.Set;
 import java.util.regex.Pattern;
 import org.apache.hadoop.hdds.annotation.InterfaceAudience;
 
@@ -181,6 +183,65 @@ public final class S3Consts {
     public static final String UPLOADS = "uploads";
     public static final String LIFECYCLE = "lifecycle";
     public static final String ATTRIBUTES = "attributes";
+    public static final String VERSION_ID = "versionId";
+    public static final String RESPONSE_CONTENT_TYPE = "response-content-type";
+    public static final String RESPONSE_CONTENT_LANGUAGE = "response-content-language";
+    public static final String RESPONSE_EXPIRES = "response-expires";
+    public static final String RESPONSE_CACHE_CONTROL = "response-cache-control";
+    public static final String RESPONSE_CONTENT_DISPOSITION = "response-content-disposition";
+    public static final String RESPONSE_CONTENT_ENCODING = "response-content-encoding";
+
+    /**
+     * S3 subresource query-parameter names. When present, AWS interprets the
+     * request as a subresource API call rather than a plain bucket/object operation.
+     * Arbitrary names outside this set (e.g. {@code foo}) are ignored.
+     *
+     * @see <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/LogFormat.html">
+     *   S3 server access log format</a>
+     */
+    public static final Set<String> SUBRESOURCE_SELECTORS = ImmutableSet.of(
+        ACL,
+        ATTRIBUTES,
+        LIFECYCLE,
+        LOCATION,
+        TAGGING,
+        TORRENT,
+        UPLOADS,
+        VERSION_ID,
+        "accelerate",
+        "abac",
+        "analytics",
+        "annotation",
+        "cors",
+        DELETE,
+        "encryption",
+        "intelligent-tiering",
+        "inventory",
+        "legal-hold",
+        "logging",
+        "metadataAnnotationTable",
+        "metadataConfiguration",
+        "metadataInventoryTable",
+        "metadataJournalTable",
+        "metadataTable",
+        "metrics",
+        "notification",
+        "object-lock",
+        "ownershipControls",
+        "policy",
+        "policyStatus",
+        "publicAccessBlock",
+        "replication",
+        "requestPayment",
+        "renameObject",
+        "restore",
+        "retention",
+        "select",
+        "session",
+        UPLOAD_ID,
+        "versioning",
+        "versions",
+        "website");
 
     private QueryParams() {
       // no instances

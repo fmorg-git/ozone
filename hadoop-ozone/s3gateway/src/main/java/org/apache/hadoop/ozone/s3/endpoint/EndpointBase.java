@@ -78,6 +78,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import javax.ws.rs.HttpMethod;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
@@ -113,6 +114,7 @@ import org.apache.hadoop.ozone.s3.RequestIdentifier;
 import org.apache.hadoop.ozone.s3.SignedChunksInputStream;
 import org.apache.hadoop.ozone.s3.UnsignedChunksInputStream;
 import org.apache.hadoop.ozone.s3.commontypes.RequestParameters;
+import org.apache.hadoop.ozone.s3.endpoint.SubresourceRouteTable.Scope;
 import org.apache.hadoop.ozone.s3.exception.OS3Exception;
 import org.apache.hadoop.ozone.s3.exception.S3ErrorTable;
 import org.apache.hadoop.ozone.s3.metrics.S3GatewayMetrics;
@@ -289,6 +291,28 @@ public abstract class EndpointBase {
   protected void applyS3Action(S3GAction action) {
     if (s3Auth != null && s3StsEnabled) {
       s3Auth.setS3Action(S3GActionIamMapper.toS3ActionString(action));
+    }
+  }
+
+  /**
+   * Whether this endpoint serves bucket-level or object-level subresources. Determines which
+   * {@link S3GAction} a selector maps to, since the same selector means different things on the
+   * two endpoints (for example {@code ?acl} is GetBucketAcl vs GetObjectAcl).
+   */
+  protected Scope subresourceScope() {
+    return Scope.BUCKET;
+  }
+
+  /** Reject unsupported S3 subresources before executing a HEAD operation. */
+  protected void validateHeadSubresourceSelectors(S3RequestContext s3Context, String bucketName)
+      throws OS3Exception, IOException {
+    try {
+      SubresourceRouteTable.validateOptionalSubresourceSelectors(queryParams().keySet(), Collections.emptySet());
+    } catch (OS3Exception selectorEx) {
+      s3Context.setAction(S3GAction.UNSUPPORTED_SUBRESOURCE);
+      getMetrics().updateSubresourceRoutingFailureStats(s3Context.getStartNanos());
+      auditReadFailure(s3Context.getAction(), selectorEx);
+      throw selectorEx;
     }
   }
 
@@ -688,6 +712,7 @@ public abstract class EndpointBase {
     }
     target.queryParams = queryParams;
     target.s3Auth = s3Auth;
+    target.s3StsEnabled = s3StsEnabled;
     target.setClient(this.client);
     target.setOzoneConfiguration(this.ozoneConfiguration);
     target.setContext(this.context);

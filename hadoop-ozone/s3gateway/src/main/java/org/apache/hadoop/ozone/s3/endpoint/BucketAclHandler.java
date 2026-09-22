@@ -41,7 +41,6 @@ import org.apache.hadoop.ozone.om.exceptions.OMException;
 import org.apache.hadoop.ozone.s3.endpoint.S3BucketAcl.Grant;
 import org.apache.hadoop.ozone.s3.exception.OS3Exception;
 import org.apache.hadoop.ozone.s3.exception.S3ErrorTable;
-import org.apache.hadoop.ozone.s3.util.S3Consts.QueryParams;
 import org.apache.hadoop.ozone.security.acl.IAccessAuthorizer;
 import org.apache.http.HttpStatus;
 import org.apache.ratis.util.MemoizedSupplier;
@@ -63,14 +62,6 @@ public class BucketAclHandler extends BucketOperationHandler {
       MemoizedSupplier.valueOf(() -> new MessageUnmarshaller<>(S3BucketAcl.class));
 
   /**
-   * Determine if this handler should handle the current request.
-   * @return true if the request has the "acl" query parameter
-   */
-  private boolean shouldHandle() {
-    return queryParams().get(QueryParams.ACL) != null;
-  }
-
-  /**
    * Implement acl get.
    * <p>
    * see: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketAcl.html
@@ -79,15 +70,10 @@ public class BucketAclHandler extends BucketOperationHandler {
   Response handleGetRequest(S3RequestContext context, String bucketName)
       throws IOException, OS3Exception {
 
-    if (!shouldHandle()) {
-      return null;  // Not responsible for this request
-    }
-
     context.setAction(S3GAction.GET_ACL);
 
     try {
-      OzoneBucket bucket = context.getVolume().getBucket(bucketName);
-      S3Owner.verifyBucketOwnerCondition(getHeaders(), bucketName, bucket.getOwner());
+        OzoneBucket bucket = context.getBucket(bucketName);
       S3Owner owner = S3Owner.of(bucket.getOwner());
 
       S3BucketAcl result = new S3BucketAcl();
@@ -124,10 +110,6 @@ public class BucketAclHandler extends BucketOperationHandler {
   Response handlePutRequest(S3RequestContext context, String bucketName, InputStream body)
       throws IOException, OS3Exception {
 
-    if (!shouldHandle()) {
-      return null;  // Not responsible for this request
-    }
-
     context.setAction(S3GAction.PUT_ACL);
 
     String grantReads = getHeaders().getHeaderString(S3Acl.GRANT_READ);
@@ -137,9 +119,8 @@ public class BucketAclHandler extends BucketOperationHandler {
     String grantFull = getHeaders().getHeaderString(S3Acl.GRANT_FULL_CONTROL);
 
     try {
-      OzoneVolume volume = context.getVolume();
-      OzoneBucket bucket = volume.getBucket(bucketName);
-      S3Owner.verifyBucketOwnerCondition(getHeaders(), bucketName, bucket.getOwner());
+        OzoneVolume volume = context.getVolume();
+      OzoneBucket bucket = context.getBucket(bucketName);
 
       List<OzoneAcl> ozoneAclListOnBucket = new ArrayList<>();
       List<OzoneAcl> ozoneAclListOnVolume = new ArrayList<>();

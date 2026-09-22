@@ -38,10 +38,6 @@ class ListMultipartUploadsHandler extends BucketOperationHandler {
   Response handleGetRequest(S3RequestContext context, String bucketName)
       throws IOException, OS3Exception {
 
-    if (queryParams().get(QueryParams.UPLOADS) == null) {
-      return null; // Not responsible for this request
-    }
-
     context.setAction(S3GAction.LIST_MULTIPART_UPLOAD);
 
     final String keyMarker = queryParams().get(QueryParams.KEY_MARKER);
@@ -57,10 +53,8 @@ class ListMultipartUploadsHandler extends BucketOperationHandler {
 
     long startNanos = context.getStartNanos();
 
-    OzoneBucket bucket = context.getVolume().getBucket(bucketName);
-
     try {
-      S3Owner.verifyBucketOwnerCondition(getHeaders(), bucketName, bucket.getOwner());
+        OzoneBucket bucket = context.getBucket(bucketName);
       OzoneMultipartUploadList ozoneMultipartUploadList =
           bucket.listMultipartUploads(prefix, keyMarker, uploadIdMarker, maxUploads);
 

@@ -24,7 +24,6 @@ import java.io.IOException;
 import javax.ws.rs.core.Response;
 import org.apache.hadoop.ozone.audit.S3GAction;
 import org.apache.hadoop.ozone.s3.exception.OS3Exception;
-import org.apache.hadoop.ozone.s3.util.S3Consts.QueryParams;
 
 /**
  * Handles GET bucket {@code ?location} ({@code GetBucketLocation}).
@@ -37,10 +36,6 @@ class BucketGetLocationHandler extends BucketOperationHandler {
   @Override
   Response handleGetRequest(S3RequestContext context, String bucketName)
       throws IOException, OS3Exception {
-    if (queryParams().get(QueryParams.LOCATION) == null) {
-      return null;
-    }
-
     context.setAction(S3GAction.GET_BUCKET_LOCATION);
     throw newError(NOT_IMPLEMENTED, "GetBucketLocation");
   }

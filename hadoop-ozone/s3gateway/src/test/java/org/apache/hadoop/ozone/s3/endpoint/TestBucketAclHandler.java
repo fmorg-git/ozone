@@ -22,7 +22,6 @@ import static org.apache.hadoop.ozone.s3.endpoint.EndpointTestUtils.assertSuccee
 import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.NOT_IMPLEMENTED;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -87,18 +86,6 @@ public class TestBucketAclHandler {
 
     assertNotNull(aclHandler.handlePutRequest(mockContext(), BUCKET_NAME, null),
         "Handler should handle request with ?acl param");
-  }
-
-  @Test
-  public void testHandlePutRequestWithoutAclQueryParam() throws Exception {
-    // Remove "acl" query parameter - handler should not handle request
-    aclHandler.queryParamsForTest().unset("acl");
-    when(headers.getHeaderString(S3Acl.GRANT_READ))
-        .thenReturn("id=\"testuser\"");
-
-    Response response = aclHandler.handlePutRequest(mockContext(), BUCKET_NAME, null);
-
-    assertNull(response, "Handler should return null without ?acl param");
   }
 
   private static Stream<String> grantHeaderNames() {
@@ -221,15 +208,6 @@ public class TestBucketAclHandler {
   }
 
   // ===== GET Request Tests =====
-
-  @Test
-  public void testHandleGetRequestWithoutAclQueryParam() throws Exception {
-    // Remove "acl" query parameter - handler should not handle request
-    aclHandler.queryParamsForTest().unset("acl");
-
-    assertNull(aclHandler.handleGetRequest(mockContext(), BUCKET_NAME),
-        "Handler should return null without ?acl param");
-  }
 
   @Test
   public void testHandleGetRequestSucceeds() throws Exception {

@@ -22,40 +22,37 @@ import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.newError;
 
 import java.io.IOException;
 import java.io.InputStream;
-import javax.ws.rs.HttpMethod;
 import javax.ws.rs.core.Response;
 import org.apache.hadoop.ozone.audit.S3GAction;
 import org.apache.hadoop.ozone.s3.endpoint.ObjectEndpoint.ObjectRequestContext;
-import org.apache.hadoop.ozone.s3.util.S3Consts;
 
-/** Not implemented yet. */
+/**
+ * Handles object {@code ?acl} ({@code GetObjectAcl} / {@code PutObjectAcl}).
+ * <p>
+ * These operations are not implemented; previously GET fell through to GetObject
+ * and returned the raw object body.
+ */
 class ObjectAclHandler extends ObjectOperationHandler {
 
   @Override
-  Response handlePutRequest(ObjectRequestContext context, String keyName, InputStream body) throws IOException {
-    if (context.ignore(getAction())) {
-      return null;
-    }
-
+  Response handleGetRequest(ObjectRequestContext context, String keyName) throws IOException {
+    context.setAction(S3GAction.GET_OBJECT_ACL);
     try {
-      throw newError(NOT_IMPLEMENTED, keyName);
+        throw newError(NOT_IMPLEMENTED, keyName);
     } catch (Exception e) {
-      getMetrics().updatePutObjectAclFailureStats(context.getStartNanos());
+      getMetrics().updateGetObjectAclFailureStats(context.getStartNanos());
       throw e;
     }
   }
 
-  @SuppressWarnings("SwitchStatementWithTooFewBranches")
-  S3GAction getAction() {
-    if (queryParams().get(S3Consts.QueryParams.ACL) == null) {
-      return null;
-    }
-
-    switch (getContext().getMethod()) {
-    case HttpMethod.PUT:
-      return S3GAction.PUT_OBJECT_ACL;
-    default:
-      return null;
+  @Override
+  Response handlePutRequest(ObjectRequestContext context, String keyName, InputStream body) throws IOException {
+    context.setAction(S3GAction.PUT_OBJECT_ACL);
+    try {
+        throw newError(NOT_IMPLEMENTED, keyName);
+    } catch (Exception e) {
+      getMetrics().updatePutObjectAclFailureStats(context.getStartNanos());
+      throw e;
     }
   }
 }

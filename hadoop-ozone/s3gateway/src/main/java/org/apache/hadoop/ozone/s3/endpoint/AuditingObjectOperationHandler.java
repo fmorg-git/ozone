@@ -36,7 +36,6 @@ class AuditingObjectOperationHandler extends ObjectOperationHandler {
   @Override
   Response handleDeleteRequest(ObjectRequestContext context, String keyName) throws IOException, OS3Exception {
     try {
-      verifyBucketOwner(context);
       Response response = delegate.handleDeleteRequest(context, keyName);
       auditWriteSuccess(context.getAction());
       return response;
@@ -49,22 +48,8 @@ class AuditingObjectOperationHandler extends ObjectOperationHandler {
   @Override
   Response handleGetRequest(ObjectRequestContext context, String keyName) throws IOException, OS3Exception {
     try {
-      verifyBucketOwner(context);
       Response response = delegate.handleGetRequest(context, keyName);
       auditReadSuccess(context.getAction(), context.getPerf());
-      return response;
-    } catch (Exception e) {
-      auditReadFailure(context.getAction(), e);
-      throw e;
-    }
-  }
-
-  @Override
-  Response handleHeadRequest(ObjectRequestContext context, String keyName) throws IOException, OS3Exception {
-    try {
-      verifyBucketOwner(context);
-      Response response = delegate.handleHeadRequest(context, keyName);
-      auditReadSuccess(context.getAction());
       return response;
     } catch (Exception e) {
       auditReadFailure(context.getAction(), e);
@@ -76,19 +61,12 @@ class AuditingObjectOperationHandler extends ObjectOperationHandler {
   Response handlePutRequest(ObjectRequestContext context, String keyName, InputStream body)
       throws IOException, OS3Exception {
     try {
-      verifyBucketOwner(context);
       Response response = delegate.handlePutRequest(context, keyName, body);
       auditWriteSuccess(context.getAction(), context.getPerf());
       return response;
     } catch (Exception e) {
       auditWriteFailure(context.getAction(), e);
       throw e;
-    }
-  }
-
-  private void verifyBucketOwner(ObjectRequestContext context) throws IOException {
-    if (S3Owner.hasBucketOwnershipVerificationConditions(getHeaders())) {
-      S3Owner.verifyBucketOwnerCondition(getHeaders(), context.getBucketName(), context.getBucket().getOwner());
     }
   }
 }
