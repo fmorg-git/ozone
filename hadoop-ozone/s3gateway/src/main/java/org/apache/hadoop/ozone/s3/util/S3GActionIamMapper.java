@@ -49,6 +49,20 @@ public final class S3GActionIamMapper {
       return "GetBucketAcl";
     case PUT_ACL:
       return "PutBucketAcl";
+    case GET_BUCKET_TAGGING:
+      return "GetBucketTagging";
+    case PUT_BUCKET_TAGGING:
+      return "PutBucketTagging";
+    case DELETE_BUCKET_TAGGING:
+      return "PutBucketTagging";
+    case GET_BUCKET_LIFECYCLE:
+      return "GetLifecycleConfiguration";
+    case PUT_BUCKET_LIFECYCLE:
+      return "PutLifecycleConfiguration";
+    case DELETE_BUCKET_LIFECYCLE:
+      return "PutLifecycleConfiguration";
+    case GET_BUCKET_LOCATION:
+      return "GetBucketLocation";
     case LIST_MULTIPART_UPLOAD:
       return "ListBucketMultipartUploads";
     case MULTI_DELETE:
@@ -67,6 +81,9 @@ public final class S3GActionIamMapper {
     case GET_KEY:
     case HEAD_KEY:
       return "GetObject";
+    case GET_OBJECT_ATTRIBUTES:
+      // ObjectAttributesHandler separately enforces the dependent GetObject action.
+      return "GetObjectAttributes";
     case ABORT_MULTIPART_UPLOAD:
       return "AbortMultipartUpload";
     case GET_OBJECT_TAGGING:
@@ -77,6 +94,8 @@ public final class S3GActionIamMapper {
       return "DeleteObjectTagging";
     case PUT_OBJECT_ACL:
       return "PutObjectAcl";
+    case GET_OBJECT_ACL:
+      return "GetObjectAcl";
     case COPY_OBJECT:
     case CREATE_MULTIPART_KEY_BY_COPY:
       // CopyObject / UploadPartCopy require distinct source (GetObject) and destination (PutObject)
@@ -86,6 +105,7 @@ public final class S3GActionIamMapper {
     case REVOKE_SECRET:
     case ASSUME_ROLE:
     case GET_CALLER_IDENTITY:
+    case UNSUPPORTED_SUBRESOURCE:
     default:
       return null;
     }

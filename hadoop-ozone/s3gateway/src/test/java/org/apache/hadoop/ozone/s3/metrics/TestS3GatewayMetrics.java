@@ -666,4 +666,13 @@ public class TestS3GatewayMetrics {
         .contains("PutObjectAclSuccessLatencyNs")
         .contains("PutObjectAclFailureLatencyNs");
   }
+
+  @Test
+  public void testGetObjectAclLatencyMetricsSnapshot() {
+    MetricsCollectorImpl collector = new MetricsCollectorImpl();
+    metrics.getMetrics(collector, true);
+    String metricsString = collector.getRecords().toString();
+    assertThat(metricsString)
+        .contains("GetObjectAclFailureLatencyNs");
+  }
 }

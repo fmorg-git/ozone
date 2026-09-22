@@ -118,6 +118,7 @@ public class TestObjectAclHandler {
 
     assertEquals(BUCKET_OWNER_MISMATCH.getCode(), exception.getCode());
     assertEquals(S3GAction.GET_OBJECT_ACL, context.getAction());
+    assertEquals("GetObjectAcl", objectEndpoint.s3ActionForTest());
     assertEquals(1L, metrics.getGetObjectAclFailure() - before);
   }
 }

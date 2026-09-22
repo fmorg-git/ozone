@@ -230,6 +230,21 @@ public class ObjectEndpoint extends ObjectOperationHandler {
     }
   }
 
+  private OzoneBucket resolvePutDestinationBucket(ObjectRequestContext context, String copyHeader)
+      throws IOException, OS3Exception {
+    if (copyHeader == null) {
+      verifyBucketOwner(context);
+      return context.getBucket();
+    }
+    // The copy actions have no single IAM action, so applyS3Action cleared it above. Resolving
+    // the destination bucket is the PutObject half of the copy; the GetObject half runs on the
+    // source in copyObject()/createMultipartKey().
+    return runWithS3ActionString("PutObject", () -> {
+      verifyBucketOwner(context);
+      return context.getBucket();
+    });
+  }
+
   @Override
   @SuppressWarnings("checkstyle:MethodLength")
   Response handlePutRequest(ObjectRequestContext context, String keyPath, InputStream body) throws IOException {
@@ -251,9 +266,9 @@ public class ObjectEndpoint extends ObjectOperationHandler {
       } else if (copyHeader != null) {
         context.setAction(S3GAction.COPY_OBJECT);
       }
-      verifyBucketOwner(context);
+      final OzoneBucket bucket = resolvePutDestinationBucket(context, copyHeader);
+      // Already resolved by context.getBucket() above, so this does not re-authorize.
       final OzoneVolume volume = context.getVolume();
-      final OzoneBucket bucket = context.getBucket();
       final String lengthHeader = getHeaders().getHeaderString(HttpHeaders.CONTENT_LENGTH);
       long length = lengthHeader != null ? Long.parseLong(lengthHeader) : 0;
 

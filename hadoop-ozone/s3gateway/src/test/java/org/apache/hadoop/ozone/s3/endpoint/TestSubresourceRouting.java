@@ -617,5 +617,33 @@ public class TestSubresourceRouting {
     assertTrue(exception.getMessage().contains("did not call verifyBucketOwner for GET"));
   }
 
+  @Test
+  public void unmappedSubresourceActionPreservesBaseIamAction() {
+    final OzoneConfiguration config = new OzoneConfiguration();
+    config.setBoolean(OzoneConfigKeys.OZONE_S3G_STS_HTTP_ENABLED_KEY, true);
+    final ObjectEndpoint endpoint = EndpointBuilder.newObjectEndpointBuilder()
+        .setConfig(config)
+        .build();
+    final ObjectEndpoint.ObjectRequestContext context =
+        endpoint.new ObjectRequestContext(S3GAction.GET_KEY, BUCKET_NAME);
 
+    context.setAction(S3GAction.GET_OBJECT_TORRENT);
+
+    assertEquals("GetObject", endpoint.s3ActionForTest());
+  }
+
+  @Test
+  public void copyActionClearsBaseIamActionUntilCopyPhaseResolvesIt() {
+    final OzoneConfiguration config = new OzoneConfiguration();
+    config.setBoolean(OzoneConfigKeys.OZONE_S3G_STS_HTTP_ENABLED_KEY, true);
+    final ObjectEndpoint endpoint = EndpointBuilder.newObjectEndpointBuilder()
+        .setConfig(config)
+        .build();
+    final ObjectEndpoint.ObjectRequestContext context =
+        endpoint.new ObjectRequestContext(S3GAction.CREATE_KEY, BUCKET_NAME);
+
+    context.setAction(S3GAction.COPY_OBJECT);
+
+    assertNull(endpoint.s3ActionForTest());
+  }
 }

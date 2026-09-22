@@ -51,6 +51,15 @@ public class TestS3GActionIamMapper {
     assertEquals("PutObjectTagging", S3GActionIamMapper.toS3ActionString(S3GAction.PUT_OBJECT_TAGGING));
     assertEquals("DeleteObjectTagging", S3GActionIamMapper.toS3ActionString(S3GAction.DELETE_OBJECT_TAGGING));
     assertEquals("PutObjectAcl", S3GActionIamMapper.toS3ActionString(S3GAction.PUT_OBJECT_ACL));
+    assertEquals("GetObjectAcl", S3GActionIamMapper.toS3ActionString(S3GAction.GET_OBJECT_ACL));
+    assertEquals("GetObjectAttributes", S3GActionIamMapper.toS3ActionString(S3GAction.GET_OBJECT_ATTRIBUTES));
+    assertEquals("GetBucketTagging", S3GActionIamMapper.toS3ActionString(S3GAction.GET_BUCKET_TAGGING));
+    assertEquals("PutBucketTagging", S3GActionIamMapper.toS3ActionString(S3GAction.PUT_BUCKET_TAGGING));
+    assertEquals("PutBucketTagging", S3GActionIamMapper.toS3ActionString(S3GAction.DELETE_BUCKET_TAGGING));
+    assertEquals("GetLifecycleConfiguration", S3GActionIamMapper.toS3ActionString(S3GAction.GET_BUCKET_LIFECYCLE));
+    assertEquals("PutLifecycleConfiguration", S3GActionIamMapper.toS3ActionString(S3GAction.PUT_BUCKET_LIFECYCLE));
+    assertEquals("PutLifecycleConfiguration", S3GActionIamMapper.toS3ActionString(S3GAction.DELETE_BUCKET_LIFECYCLE));
+    assertEquals("GetBucketLocation", S3GActionIamMapper.toS3ActionString(S3GAction.GET_BUCKET_LOCATION));
   }
 
   @Test
@@ -65,5 +74,6 @@ public class TestS3GActionIamMapper {
     assertNull(S3GActionIamMapper.toS3ActionString(S3GAction.GET_CALLER_IDENTITY));
     assertNull(S3GActionIamMapper.toS3ActionString(S3GAction.GENERATE_SECRET));
     assertNull(S3GActionIamMapper.toS3ActionString(S3GAction.REVOKE_SECRET));
+    assertNull(S3GActionIamMapper.toS3ActionString(S3GAction.UNSUPPORTED_SUBRESOURCE));
   }
 }

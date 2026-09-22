@@ -116,13 +116,15 @@ class ObjectAttributesHandler extends ObjectOperationHandler {
       OzoneKey key;
       NavigableMap<Integer, Long> completedPartSizes = null;
       try {
+        // AWS requires both s3:GetObject and s3:GetObjectAttributes. The main metadata
+        // request runs with GetObjectAttributes; perform the dependent GetObject check first.
+        requireS3ActionString("GetObject",
+            () -> getClientProtocol().headS3Object(bucketName, keyPath));
+        final S3HeadObjectAttributes headAttributes =
+            getClientProtocol().headS3ObjectAttributes(bucketName, keyPath);
+        key = headAttributes.getKey();
         if (requestedAttributes.contains(ATTR_OBJECT_PARTS)) {
-          final S3HeadObjectAttributes headAttributes =
-              getClientProtocol().headS3ObjectAttributes(bucketName, keyPath);
-          key = headAttributes.getKey();
           completedPartSizes = headAttributes.getCompletedMultipartPartSizes();
-        } else {
-          key = getClientProtocol().headS3Object(bucketName, keyPath);
         }
         validateFileKey(keyPath, key);
       } catch (OMException ex) {

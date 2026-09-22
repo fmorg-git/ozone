@@ -292,7 +292,17 @@ public abstract class EndpointBase {
    */
   protected void applyS3Action(S3GAction action) {
     if (s3Auth != null && s3StsEnabled) {
-      s3Auth.setS3Action(S3GActionIamMapper.toS3ActionString(action));
+      final String s3Action = S3GActionIamMapper.toS3ActionString(action);
+      // Copy operations set their action before the source and destination checks, so
+      // clear the method-level action until those checks select a concrete IAM action.
+      if (action == S3GAction.COPY_OBJECT
+          || action == S3GAction.CREATE_MULTIPART_KEY_BY_COPY) {
+        s3Auth.setS3Action(null);
+      } else if (s3Action != null) {
+        // Keep the previously resolved method-level action for audit-only actions
+        // without an IAM mapping, such as unsupported subresources.
+        s3Auth.setS3Action(s3Action);
+      }
     }
   }
 
@@ -411,6 +421,21 @@ public abstract class EndpointBase {
     } finally {
       s3Auth.setS3Action(originalS3Action);
     }
+  }
+
+  /**
+   * Performs an additional authorization check for APIs that require more than one IAM action.
+   * The check is skipped when fine-grained STS authorization is disabled.
+   */
+  protected <E extends Exception> void requireS3ActionString(
+      String s3Action, CheckedRunnable<E> authorizationCheck) throws E {
+    if (s3Auth == null || !s3StsEnabled) {
+      return;
+    }
+    runWithS3ActionString(s3Action, () -> {
+      authorizationCheck.run();
+      return null;
+    });
   }
 
   protected OzoneVolume getVolume() throws IOException {
@@ -798,6 +823,11 @@ public abstract class EndpointBase {
 
   protected OzoneConfiguration getOzoneConfiguration() {
     return ozoneConfiguration;
+  }
+
+  @VisibleForTesting
+  String s3ActionForTest() {
+    return s3Auth != null ? s3Auth.getS3Action() : null;
   }
 
   @VisibleForTesting
