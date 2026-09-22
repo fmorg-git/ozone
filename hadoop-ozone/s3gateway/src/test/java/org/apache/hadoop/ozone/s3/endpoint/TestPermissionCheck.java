@@ -322,6 +322,7 @@ public class TestPermissionCheck {
         .setConfig(conf)
         .build();
 
+    objectEndpoint.queryParamsForTest().set("uploads", "");
     assertErrorResponse(S3ErrorTable.ACCESS_DENIED,
         () -> objectEndpoint.initializeMultipartUpload("bucketName", "keyPath"));
   }

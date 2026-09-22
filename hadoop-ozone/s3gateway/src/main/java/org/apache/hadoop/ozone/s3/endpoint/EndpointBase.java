@@ -293,6 +293,21 @@ public abstract class EndpointBase {
   }
 
   /**
+   * Returns the operation resolved by the request filter, or resolves it
+   * directly for endpoint unit tests that invoke resource methods themselves.
+   */
+  S3Operation resolveOperation(ResourceLevel resourceLevel, String method) throws OS3Exception {
+    final Object resolved = getContext().getProperty(S3Operation.class.getName());
+    if (resolved instanceof S3Operation) {
+      final S3Operation operation = (S3Operation) resolved;
+      if (operation.getResourceLevel() == resourceLevel) {
+        return operation;
+      }
+    }
+    return S3Operation.resolve(resourceLevel, method, queryParams());
+  }
+
+  /**
    * Temporarily override the S3 action string set on {@link S3Auth} for authorization.
    * <p>
    * This does not change S3G auditing (which is based on {@link S3GAction}).

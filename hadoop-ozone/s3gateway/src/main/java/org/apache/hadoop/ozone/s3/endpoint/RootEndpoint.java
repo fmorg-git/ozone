@@ -23,6 +23,7 @@ import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.newError;
 import java.io.IOException;
 import java.util.Iterator;
 import javax.ws.rs.GET;
+import javax.ws.rs.HttpMethod;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.Response;
 import org.apache.hadoop.ozone.audit.S3GAction;
@@ -54,6 +55,7 @@ public class RootEndpoint extends EndpointBase {
   @GET
   public Response get()
       throws OS3Exception, IOException {
+    resolveOperation(ResourceLevel.SERVICE, HttpMethod.GET);
     if (isS3ExpressSignedRequest()) {
       return listDirectoryBuckets();
     }
@@ -83,7 +85,8 @@ public class RootEndpoint extends EndpointBase {
    */
   private Response listDirectoryBuckets()
       throws OS3Exception, IOException {
-    S3RequestContext context = new S3RequestContext(this, S3GAction.LIST_DIRECTORY_BUCKETS);
+    final S3RequestContext context = new S3RequestContext(this, S3Operation.LIST_BUCKETS);
+    context.setAction(S3GAction.LIST_DIRECTORY_BUCKETS);
     long startNanos = context.getStartNanos();
     boolean auditSuccess = true;
     try {
@@ -150,7 +153,7 @@ public class RootEndpoint extends EndpointBase {
 
   private Response listAllBuckets()
       throws OS3Exception, IOException {
-    S3RequestContext context = new S3RequestContext(this, S3GAction.LIST_S3_BUCKETS);
+    final S3RequestContext context = new S3RequestContext(this, S3Operation.LIST_BUCKETS);
     long startNanos = context.getStartNanos();
     boolean auditSuccess = true;
     try {

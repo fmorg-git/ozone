@@ -161,8 +161,6 @@ public final class S3Consts {
     public static final String KEY_MARKER = "key-marker";
     public static final String FETCH_OWNER = "fetch-owner";
     public static final String LIST_TYPE = "list-type";
-    // GetBucketLocation is not implemented
-    public static final String LOCATION = "location";
     public static final String MARKER = "marker";
     public static final String MAX_DIRECTORY_BUCKETS = "max-directory-buckets";
     public static final String MAX_BUCKETS = "max-buckets";
@@ -174,8 +172,6 @@ public final class S3Consts {
     public static final String PREFIX = "prefix";
     public static final String START_AFTER = "start-after";
     public static final String TAGGING = "tagging";
-    // GetObjectTorrent is not implemented
-    public static final String TORRENT = "torrent";
     public static final String UPLOAD_ID = "uploadId";
     public static final String UPLOAD_ID_MARKER = "upload-id-marker";
     public static final String UPLOADS = "uploads";

@@ -64,6 +64,7 @@ import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.HEAD;
+import javax.ws.rs.HttpMethod;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -148,16 +149,26 @@ public class ObjectEndpoint extends ObjectOperationHandler {
 
   @Override
   protected void init() {
-    super.init();
-    ObjectOperationHandler chain = ObjectOperationHandlerChain.newBuilder(this)
-        .add(new ObjectGetTorrentHandler())
-        .add(new ObjectAclHandler())
-        .add(new ObjectTaggingHandler())
-        .add(new ObjectAttributesHandler())
-        .add(new MultipartKeyHandler())
-        .add(this)
-        .build();
-    handler = new AuditingObjectOperationHandler(chain);
+    final ObjectTaggingHandler taggingHandler = new ObjectTaggingHandler();
+    final ObjectAttributesHandler attributesHandler = new ObjectAttributesHandler();
+    final MultipartKeyHandler multipartKeyHandler = new MultipartKeyHandler();
+    final S3OperationRouter<ObjectOperationHandler> router =
+        S3OperationRouter.<ObjectOperationHandler>newBuilder(ResourceLevel.OBJECT, this)
+            .register(S3Operation.ABORT_MULTIPART_UPLOAD, multipartKeyHandler)
+            .register(S3Operation.COMPLETE_MULTIPART_UPLOAD, this)
+            .register(S3Operation.CREATE_MULTIPART_UPLOAD, this)
+            .register(S3Operation.DELETE_OBJECT, this)
+            .register(S3Operation.DELETE_OBJECT_TAGGING, taggingHandler)
+            .register(S3Operation.GET_OBJECT, this)
+            .register(S3Operation.GET_OBJECT_ATTRIBUTES, attributesHandler)
+            .register(S3Operation.GET_OBJECT_TAGGING, taggingHandler)
+            .register(S3Operation.HEAD_OBJECT, this)
+            .register(S3Operation.LIST_PARTS, multipartKeyHandler)
+            .register(S3Operation.PUT_OBJECT, this)
+            .register(S3Operation.PUT_OBJECT_TAGGING, taggingHandler)
+            .register(S3Operation.UPLOAD_PART, this)
+            .build();
+    handler = new AuditingObjectOperationHandler(router, this);
   }
 
   /**
@@ -172,7 +183,8 @@ public class ObjectEndpoint extends ObjectOperationHandler {
       @PathParam(PATH) String keyPath,
       final InputStream body
   ) throws IOException, OS3Exception {
-    ObjectRequestContext context = new ObjectRequestContext(S3GAction.CREATE_KEY, bucketName);
+    final S3Operation operation = resolveOperation(ResourceLevel.OBJECT, HttpMethod.PUT);
+    final ObjectRequestContext context = new ObjectRequestContext(operation, bucketName);
     try {
       return handler.handlePutRequest(context, keyPath, body);
     } catch (OMException ex) {
@@ -371,7 +383,8 @@ public class ObjectEndpoint extends ObjectOperationHandler {
       @PathParam(BUCKET) String bucketName,
       @PathParam(PATH) String keyPath
   ) throws IOException, OS3Exception {
-    ObjectRequestContext context = new ObjectRequestContext(S3GAction.GET_KEY, bucketName);
+    final S3Operation operation = resolveOperation(ResourceLevel.OBJECT, HttpMethod.GET);
+    final ObjectRequestContext context = new ObjectRequestContext(operation, bucketName);
     try {
       validateObjectKeyUri(keyPath);
       return handler.handleGetRequest(context, keyPath);
@@ -633,7 +646,8 @@ public class ObjectEndpoint extends ObjectOperationHandler {
   public Response head(
       @PathParam(BUCKET) String bucketName,
       @PathParam(PATH) String keyPath) throws IOException, OS3Exception {
-    ObjectRequestContext context = new ObjectRequestContext(S3GAction.HEAD_KEY, bucketName);
+    final S3Operation operation = resolveOperation(ResourceLevel.OBJECT, HttpMethod.HEAD);
+    final ObjectRequestContext context = new ObjectRequestContext(operation, bucketName);
     long startNanos = context.getStartNanos();
     final int partNumber = queryParams().getInt(QueryParams.PART_NUMBER, 0);
     // A negative part number is not a valid part; reject it as InvalidArgument.
@@ -714,7 +728,8 @@ public class ObjectEndpoint extends ObjectOperationHandler {
       @PathParam(BUCKET) String bucketName,
       @PathParam(PATH) String keyPath
   ) throws IOException, OS3Exception {
-    ObjectRequestContext context = new ObjectRequestContext(S3GAction.DELETE_KEY, bucketName);
+    final S3Operation operation = resolveOperation(ResourceLevel.OBJECT, HttpMethod.DELETE);
+    final ObjectRequestContext context = new ObjectRequestContext(operation, bucketName);
     try {
       return handler.handleDeleteRequest(context, keyPath);
     } catch (OMException ex) {
@@ -779,7 +794,8 @@ public class ObjectEndpoint extends ObjectOperationHandler {
       @PathParam(BUCKET) String bucket,
       @PathParam(PATH) String key
   ) throws IOException, OS3Exception {
-    ObjectRequestContext context = new ObjectRequestContext(S3GAction.INIT_MULTIPART_UPLOAD, bucket);
+    final S3Operation operation = resolveOperation(ResourceLevel.OBJECT, HttpMethod.POST);
+    final ObjectRequestContext context = new ObjectRequestContext(operation, bucket);
     long startNanos = context.getStartNanos();
 
     try {
@@ -830,7 +846,8 @@ public class ObjectEndpoint extends ObjectOperationHandler {
       @PathParam(PATH) String key,
       CompleteMultipartUploadRequest multipartUploadRequest
   ) throws IOException, OS3Exception {
-    ObjectRequestContext context = new ObjectRequestContext(S3GAction.COMPLETE_MULTIPART_UPLOAD, bucket);
+    final S3Operation operation = resolveOperation(ResourceLevel.OBJECT, HttpMethod.POST);
+    final ObjectRequestContext context = new ObjectRequestContext(operation, bucket);
     final String uploadID = queryParams().get(QueryParams.UPLOAD_ID, "");
     long startNanos = context.getStartNanos();
     List<CompleteMultipartUploadRequest.Part> partList =
@@ -1337,9 +1354,8 @@ public class ObjectEndpoint extends ObjectOperationHandler {
     private final String bucketName;
     private OzoneBucket bucket;
 
-    /** @param action best guess on action based on request method, may be refined later by handlers */
-    ObjectRequestContext(S3GAction action, String bucketName) {
-      super(ObjectEndpoint.this, action);
+    ObjectRequestContext(S3Operation operation, String bucketName) {
+      super(ObjectEndpoint.this, operation);
       this.bucketName = bucketName;
     }
 

@@ -23,10 +23,10 @@ import javax.ws.rs.core.Response;
 import org.apache.hadoop.ozone.s3.exception.OS3Exception;
 
 /**
- * Interface for handling bucket operations using chain of responsibility pattern.
- * Each implementation handles a specific S3 bucket subresource operation
- * (e.g., ?acl, ?lifecycle, ?notification).
- *
+ * Base class for handlers of resolved bucket operations.
+ * Each implementation handles one or more related S3 bucket operations.
+ * For example, GET/PUT/DELETE lifecycle S3 operations are implemented by BucketLifecycleHandler.
+ * <p>
  * Implementations should extend EndpointBase to inherit all required functionality
  * (configuration, headers, request context, audit logging, metrics, etc.).
  */
@@ -53,7 +53,7 @@ abstract class BucketOperationHandler extends EndpointBase {
    * The handler inspects the request (query parameters, headers, etc.) to determine
    * if it should handle the request.
    *
-   * @param context
+   * @param context    the S3RequestContext
    * @param bucketName the name of the bucket
    * @return Response if this handler handles the request, null otherwise
    * @throws IOException if an I/O error occurs
@@ -67,10 +67,5 @@ abstract class BucketOperationHandler extends EndpointBase {
   Response handleDeleteRequest(S3RequestContext context, String bucketName)
       throws IOException, OS3Exception {
     return null;
-  }
-
-  BucketOperationHandler copyDependenciesFrom(EndpointBase other) {
-    other.copyDependenciesTo(this);
-    return this;
   }
 }

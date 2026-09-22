@@ -34,14 +34,12 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.ozone.OzoneAcl;
-import org.apache.hadoop.ozone.audit.S3GAction;
 import org.apache.hadoop.ozone.client.OzoneBucket;
 import org.apache.hadoop.ozone.client.OzoneVolume;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
 import org.apache.hadoop.ozone.s3.endpoint.S3BucketAcl.Grant;
 import org.apache.hadoop.ozone.s3.exception.OS3Exception;
 import org.apache.hadoop.ozone.s3.exception.S3ErrorTable;
-import org.apache.hadoop.ozone.s3.util.S3Consts.QueryParams;
 import org.apache.hadoop.ozone.security.acl.IAccessAuthorizer;
 import org.apache.http.HttpStatus;
 import org.apache.ratis.util.MemoizedSupplier;
@@ -63,14 +61,6 @@ public class BucketAclHandler extends BucketOperationHandler {
       MemoizedSupplier.valueOf(() -> new MessageUnmarshaller<>(S3BucketAcl.class));
 
   /**
-   * Determine if this handler should handle the current request.
-   * @return true if the request has the "acl" query parameter
-   */
-  private boolean shouldHandle() {
-    return queryParams().get(QueryParams.ACL) != null;
-  }
-
-  /**
    * Implement acl get.
    * <p>
    * see: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketAcl.html
@@ -78,12 +68,6 @@ public class BucketAclHandler extends BucketOperationHandler {
   @Override
   Response handleGetRequest(S3RequestContext context, String bucketName)
       throws IOException, OS3Exception {
-
-    if (!shouldHandle()) {
-      return null;  // Not responsible for this request
-    }
-
-    context.setAction(S3GAction.GET_ACL);
 
     try {
       OzoneBucket bucket = context.getVolume().getBucket(bucketName);
@@ -123,12 +107,6 @@ public class BucketAclHandler extends BucketOperationHandler {
   @Override
   Response handlePutRequest(S3RequestContext context, String bucketName, InputStream body)
       throws IOException, OS3Exception {
-
-    if (!shouldHandle()) {
-      return null;  // Not responsible for this request
-    }
-
-    context.setAction(S3GAction.PUT_ACL);
 
     String grantReads = getHeaders().getHeaderString(S3Acl.GRANT_READ);
     String grantWrites = getHeaders().getHeaderString(S3Acl.GRANT_WRITE);

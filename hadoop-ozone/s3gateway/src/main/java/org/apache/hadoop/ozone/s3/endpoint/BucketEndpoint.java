@@ -37,6 +37,7 @@ import java.util.Objects;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.HEAD;
+import javax.ws.rs.HttpMethod;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -49,7 +50,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hdds.scm.client.HddsClientUtils;
 import org.apache.hadoop.ozone.audit.AuditEventStatus;
 import org.apache.hadoop.ozone.audit.AuditMessage;
-import org.apache.hadoop.ozone.audit.S3GAction;
 import org.apache.hadoop.ozone.client.OzoneBucket;
 import org.apache.hadoop.ozone.client.OzoneKey;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
@@ -95,7 +95,8 @@ public class BucketEndpoint extends BucketOperationHandler {
   public Response get(
       @PathParam(BUCKET) String bucketName
   ) throws OS3Exception, IOException {
-    S3RequestContext context = new S3RequestContext(this, S3GAction.GET_BUCKET);
+    final S3Operation operation = resolveOperation(ResourceLevel.BUCKET, HttpMethod.GET);
+    final S3RequestContext context = new S3RequestContext(this, operation);
     try {
       return handler.handleGetRequest(context, bucketName);
     } catch (OMException ex) {
@@ -268,7 +269,8 @@ public class BucketEndpoint extends BucketOperationHandler {
       @PathParam(BUCKET) String bucketName,
       InputStream body
   ) throws IOException, OS3Exception {
-    S3RequestContext context = new S3RequestContext(this, S3GAction.CREATE_BUCKET);
+    final S3Operation operation = resolveOperation(ResourceLevel.BUCKET, HttpMethod.PUT);
+    final S3RequestContext context = new S3RequestContext(this, operation);
     try {
       return handler.handlePutRequest(context, bucketName, body);
     } catch (OMException ex) {
@@ -277,11 +279,6 @@ public class BucketEndpoint extends BucketOperationHandler {
       }
       throw newError(bucketName, ex);
     }
-  }
-
-  @Override
-  Response handlePutRequest(S3RequestContext context, String bucketName, InputStream body) {
-    throw newError(S3ErrorTable.NOT_IMPLEMENTED, "PUT bucket");
   }
 
   /**
@@ -293,7 +290,8 @@ public class BucketEndpoint extends BucketOperationHandler {
   @HEAD
   public Response head(@PathParam(BUCKET) String bucketName)
       throws OS3Exception, IOException {
-    S3RequestContext context = new S3RequestContext(this, S3GAction.HEAD_BUCKET);
+    final S3Operation operation = resolveOperation(ResourceLevel.BUCKET, HttpMethod.HEAD);
+    final S3RequestContext context = new S3RequestContext(this, operation);
     long startNanos = context.getStartNanos();
     try {
       OzoneBucket bucket = getVolume().getBucket(bucketName);
@@ -319,17 +317,13 @@ public class BucketEndpoint extends BucketOperationHandler {
   @DELETE
   public Response delete(@PathParam(BUCKET) String bucketName)
       throws IOException, OS3Exception {
-    S3RequestContext context = new S3RequestContext(this, S3GAction.DELETE_BUCKET);
+    final S3Operation operation = resolveOperation(ResourceLevel.BUCKET, HttpMethod.DELETE);
+    final S3RequestContext context = new S3RequestContext(this, operation);
     try {
       return handler.handleDeleteRequest(context, bucketName);
     } catch (OMException ex) {
       throw newError(bucketName, ex);
     }
-  }
-
-  @Override
-  Response handleDeleteRequest(S3RequestContext context, String bucketName) {
-    throw newError(S3ErrorTable.NOT_IMPLEMENTED, "DELETE bucket");
   }
 
   /**
@@ -345,7 +339,8 @@ public class BucketEndpoint extends BucketOperationHandler {
       @QueryParam(QueryParams.DELETE) String delete,
       MultiDeleteRequest request
   ) throws OS3Exception, IOException {
-    S3RequestContext context = new S3RequestContext(this, S3GAction.MULTI_DELETE);
+    final S3Operation operation = resolveOperation(ResourceLevel.BUCKET, HttpMethod.POST);
+    final S3RequestContext context = new S3RequestContext(this, operation);
 
     if (request.getObjects() != null
         && request.getObjects().size() > S3Consts.S3_DELETE_OBJECTS_MAX_KEYS) {
@@ -446,17 +441,28 @@ public class BucketEndpoint extends BucketOperationHandler {
         OZONE_S3G_LIST_MAX_KEYS_LIMIT,
         OZONE_S3G_LIST_MAX_KEYS_LIMIT_DEFAULT);
 
-    // initialize handlers
-    BucketOperationHandler chain = BucketOperationHandlerChain.newBuilder(this)
-        .add(new BucketGetLocationHandler())
-        .add(new BucketAclHandler())
-        .add(new ListMultipartUploadsHandler())
-        .add(new BucketTaggingHandler())
-        .add(new BucketLifecycleHandler())
-        .add(new BucketCrudHandler())
-        .add(this)
-        .build();
-    handler = new AuditingBucketOperationHandler(chain);
+    final BucketCrudHandler crudHandler = new BucketCrudHandler();
+    final BucketAclHandler aclHandler = new BucketAclHandler();
+    final BucketTaggingHandler taggingHandler = new BucketTaggingHandler();
+    final BucketLifecycleHandler lifecycleHandler = new BucketLifecycleHandler();
+    final S3OperationRouter<BucketOperationHandler> router = S3OperationRouter.<BucketOperationHandler>newBuilder(
+        ResourceLevel.BUCKET, this)
+            .register(S3Operation.CREATE_BUCKET, crudHandler)
+            .register(S3Operation.DELETE_BUCKET, crudHandler)
+            .register(S3Operation.DELETE_BUCKET_LIFECYCLE, lifecycleHandler)
+            .register(S3Operation.DELETE_BUCKET_TAGGING, taggingHandler)
+            .register(S3Operation.DELETE_OBJECTS, this)
+            .register(S3Operation.GET_BUCKET_ACL, aclHandler)
+            .register(S3Operation.GET_BUCKET_LIFECYCLE, lifecycleHandler)
+            .register(S3Operation.GET_BUCKET_TAGGING, taggingHandler)
+            .register(S3Operation.HEAD_BUCKET, this)
+            .register(S3Operation.LIST_MULTIPART_UPLOADS, new ListMultipartUploadsHandler())
+            .register(S3Operation.LIST_OBJECTS, this)
+            .register(S3Operation.PUT_BUCKET_ACL, aclHandler)
+            .register(S3Operation.PUT_BUCKET_TAGGING, taggingHandler)
+            .register(S3Operation.PUT_BUCKET_LIFECYCLE, lifecycleHandler)
+            .build();
+    handler = new AuditingBucketOperationHandler(router, this);
   }
 
   private void handleOMException(OMException ex, String bucketName, String prefix) throws OMException {

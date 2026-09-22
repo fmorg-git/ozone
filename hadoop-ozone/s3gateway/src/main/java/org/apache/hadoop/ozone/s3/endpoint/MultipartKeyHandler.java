@@ -28,7 +28,6 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.ozone.audit.AuditLogger;
 import org.apache.hadoop.ozone.audit.AuditLogger.PerformanceStringBuilder;
-import org.apache.hadoop.ozone.audit.S3GAction;
 import org.apache.hadoop.ozone.client.OzoneBucket;
 import org.apache.hadoop.ozone.client.OzoneMultipartUploadPartListParts;
 import org.apache.hadoop.ozone.client.OzoneVolume;
@@ -48,13 +47,6 @@ class MultipartKeyHandler extends ObjectOperationHandler {
       throws IOException, OS3Exception {
 
     final String uploadId = queryParams().get(QueryParams.UPLOAD_ID);
-    if (uploadId == null) {
-      // not MPU -> let next handler run
-      return null;
-    }
-
-    context.setAction(S3GAction.LIST_PARTS);
-
     final int maxParts = queryParams().getInt(QueryParams.MAX_PARTS, 1000);
     final String partNumberMarker = queryParams().get(QueryParams.PART_NUMBER_MARKER);
     final AuditLogger.PerformanceStringBuilder perf = context.getPerf();
@@ -78,13 +70,6 @@ class MultipartKeyHandler extends ObjectOperationHandler {
       throws IOException, OS3Exception {
 
     final String uploadId = queryParams().get(QueryParams.UPLOAD_ID);
-    if (StringUtils.isEmpty(uploadId)) {
-      // not MPU -> let next handler run
-      return null;
-    }
-
-    context.setAction(S3GAction.ABORT_MULTIPART_UPLOAD);
-
     try {
       Response r = abortMultipartUpload(context.getVolume(),
           context.getBucketName(), keyPath, uploadId);

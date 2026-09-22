@@ -24,7 +24,6 @@ import java.io.IOException;
 import org.apache.hadoop.ozone.client.OzoneClient;
 import org.apache.hadoop.ozone.client.OzoneClientStub;
 import org.apache.hadoop.ozone.s3.exception.S3ErrorTable;
-import org.apache.hadoop.ozone.s3.util.S3Consts.QueryParams;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -47,7 +46,14 @@ public class TestObjectGetTorrent {
 
   @Test
   public void getObjectTorrentIsNotImplemented() {
-    objectEndpoint.queryParamsForTest().set(QueryParams.TORRENT, "");
+    objectEndpoint.queryParamsForTest().set("torrent", "");
+
+    assertErrorResponse(S3ErrorTable.NOT_IMPLEMENTED, () -> get(objectEndpoint, BUCKET_NAME, KEY_NAME));
+  }
+
+  @Test
+  public void getObjectAclIsNotImplemented() {
+    objectEndpoint.queryParamsForTest().set("acl", "");
 
     assertErrorResponse(S3ErrorTable.NOT_IMPLEMENTED, () -> get(objectEndpoint, BUCKET_NAME, KEY_NAME));
   }

@@ -78,7 +78,7 @@ public class TestCopyActionsAudit {
     final ObjectEndpoint endpoint = newEndpoint(client, headers);
     final AuditingObjectOperationHandler auditing = spy(new AuditingObjectOperationHandler(endpoint));
 
-    final ObjectRequestContext requestContext = endpoint.new ObjectRequestContext(S3GAction.CREATE_KEY, bucketName);
+    final ObjectRequestContext requestContext = endpoint.new ObjectRequestContext(S3Operation.PUT_OBJECT, bucketName);
 
     auditing.handlePutRequest(requestContext, destKey, new ByteArrayInputStream(new byte[0]));
 
@@ -116,7 +116,7 @@ public class TestCopyActionsAudit {
     endpoint.queryParamsForTest().setInt(S3Consts.QueryParams.PART_NUMBER, 1);
 
     final AuditingObjectOperationHandler auditing = spy(new AuditingObjectOperationHandler(endpoint));
-    final ObjectRequestContext requestContext = endpoint.new ObjectRequestContext(S3GAction.CREATE_KEY, bucketName);
+    final ObjectRequestContext requestContext = endpoint.new ObjectRequestContext(S3Operation.PUT_OBJECT, bucketName);
 
     auditing.handlePutRequest(requestContext, destKey, new ByteArrayInputStream(new byte[0]));
 

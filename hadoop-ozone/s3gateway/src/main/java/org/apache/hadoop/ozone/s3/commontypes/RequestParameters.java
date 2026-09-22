@@ -17,6 +17,7 @@
 
 package org.apache.hadoop.ozone.s3.commontypes;
 
+import java.util.Set;
 import javax.ws.rs.core.MultivaluedMap;
 import org.apache.hadoop.ozone.s3.exception.S3ErrorTable;
 
@@ -24,6 +25,9 @@ import org.apache.hadoop.ozone.s3.exception.S3ErrorTable;
 public interface RequestParameters {
 
   String get(String key);
+
+  /** @return query parameter names present on the request, including empty values */
+  Set<String> keySet();
 
   static MultivaluedMapImpl of(MultivaluedMap<String, String> params) {
     return new MultivaluedMapImpl(params);
@@ -90,6 +94,11 @@ public interface RequestParameters {
     @Override
     public String get(String key) {
       return params.getFirst(key);
+    }
+
+    @Override
+    public Set<String> keySet() {
+      return params.keySet();
     }
 
     @Override

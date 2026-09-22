@@ -26,18 +26,25 @@ import org.apache.hadoop.ozone.s3.exception.OS3Exception;
 /** Performs audit logging for {@link ObjectOperationHandler}s. */
 class AuditingObjectOperationHandler extends ObjectOperationHandler {
 
-  private final ObjectOperationHandler delegate;
+  private final S3OperationRouter<ObjectOperationHandler> router;
+
+  AuditingObjectOperationHandler(S3OperationRouter<ObjectOperationHandler> router, EndpointBase endpoint) {
+    this.router = router;
+    endpoint.copyDependenciesTo(this);
+  }
 
   AuditingObjectOperationHandler(ObjectOperationHandler delegate) {
-    this.delegate = delegate;
-    copyDependenciesFrom(delegate);
+    this(S3OperationRouter.newBuilder(ResourceLevel.OBJECT, delegate)
+        .registerAll(delegate)
+        .build(), delegate);
   }
 
   @Override
   Response handleDeleteRequest(ObjectRequestContext context, String keyName) throws IOException, OS3Exception {
     try {
       verifyBucketOwner(context);
-      Response response = delegate.handleDeleteRequest(context, keyName);
+      final Response response = router.handlerFor(context.getOperation())
+          .handleDeleteRequest(context, keyName);
       auditWriteSuccess(context.getAction());
       return response;
     } catch (Exception e) {
@@ -50,7 +57,8 @@ class AuditingObjectOperationHandler extends ObjectOperationHandler {
   Response handleGetRequest(ObjectRequestContext context, String keyName) throws IOException, OS3Exception {
     try {
       verifyBucketOwner(context);
-      Response response = delegate.handleGetRequest(context, keyName);
+      final Response response = router.handlerFor(context.getOperation())
+          .handleGetRequest(context, keyName);
       auditReadSuccess(context.getAction(), context.getPerf());
       return response;
     } catch (Exception e) {
@@ -63,7 +71,8 @@ class AuditingObjectOperationHandler extends ObjectOperationHandler {
   Response handleHeadRequest(ObjectRequestContext context, String keyName) throws IOException, OS3Exception {
     try {
       verifyBucketOwner(context);
-      Response response = delegate.handleHeadRequest(context, keyName);
+      final Response response = router.handlerFor(context.getOperation())
+          .handleHeadRequest(context, keyName);
       auditReadSuccess(context.getAction());
       return response;
     } catch (Exception e) {
@@ -77,7 +86,8 @@ class AuditingObjectOperationHandler extends ObjectOperationHandler {
       throws IOException, OS3Exception {
     try {
       verifyBucketOwner(context);
-      Response response = delegate.handlePutRequest(context, keyName, body);
+      final Response response = router.handlerFor(context.getOperation())
+          .handlePutRequest(context, keyName, body);
       auditWriteSuccess(context.getAction(), context.getPerf());
       return response;
     } catch (Exception e) {

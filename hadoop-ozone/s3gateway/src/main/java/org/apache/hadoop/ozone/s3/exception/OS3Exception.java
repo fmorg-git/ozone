@@ -55,6 +55,15 @@ public class OS3Exception extends RuntimeException {
   @XmlElement(name = "Message")
   private String errorMessage;
 
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  @XmlElement(name = "ArgumentName")
+  private String argumentName;
+
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  @XmlElement(name = "ArgumentValue")
+  private String argumentValue;
+
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   @XmlElement(name = "Resource")
   private String resource;
 
@@ -102,6 +111,22 @@ public class OS3Exception extends RuntimeException {
 
   public void setErrorMessage(String errorMessage) {
     this.errorMessage = errorMessage;
+  }
+
+  public String getArgumentName() {
+    return argumentName;
+  }
+
+  public void setArgumentName(String argumentName) {
+    this.argumentName = argumentName;
+  }
+
+  public String getArgumentValue() {
+    return argumentValue;
+  }
+
+  public void setArgumentValue(String argumentValue) {
+    this.argumentValue = argumentValue;
   }
 
   public String getRequestId() {
@@ -160,9 +185,17 @@ public class OS3Exception extends RuntimeException {
     final StringBuilder builder = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
         .append("<Error>")
         .append("<Code>").append(this.getCode()).append("</Code>")
-        .append("<Message>").append(this.getErrorMessage()).append("</Message>")
-        .append("<Resource>").append(this.getResource()).append("</Resource>")
-        .append("<RequestId>").append(this.getRequestId()).append("</RequestId>");
+        .append("<Message>").append(this.getErrorMessage()).append("</Message>");
+    if (!Strings.isNullOrEmpty(this.getArgumentName())) {
+      builder.append("<ArgumentName>").append(this.getArgumentName()).append("</ArgumentName>");
+    }
+    if (!Strings.isNullOrEmpty(this.getArgumentValue())) {
+      builder.append("<ArgumentValue>").append(this.getArgumentValue()).append("</ArgumentValue>");
+    }
+    if (!Strings.isNullOrEmpty(this.getResource())) {
+      builder.append("<Resource>").append(this.getResource()).append("</Resource>");
+    }
+    builder.append("<RequestId>").append(this.getRequestId()).append("</RequestId>");
     if (!Strings.isNullOrEmpty(this.getHostId())) {
       builder.append("<HostId>").append(this.getHostId()).append("</HostId>");
     }

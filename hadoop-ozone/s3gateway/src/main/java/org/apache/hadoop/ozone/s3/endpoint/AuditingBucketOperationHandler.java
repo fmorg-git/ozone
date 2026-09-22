@@ -24,17 +24,18 @@ import org.apache.hadoop.ozone.s3.exception.OS3Exception;
 
 /** Performs audit logging for {@link BucketOperationHandler}s. */
 class AuditingBucketOperationHandler extends BucketOperationHandler {
-  private final BucketOperationHandler delegate;
+  private final S3OperationRouter<BucketOperationHandler> router;
 
-  AuditingBucketOperationHandler(BucketOperationHandler delegate) {
-    this.delegate = delegate;
-    delegate.copyDependenciesTo(this);
+  AuditingBucketOperationHandler(S3OperationRouter<BucketOperationHandler> router, EndpointBase endpoint) {
+    this.router = router;
+    endpoint.copyDependenciesTo(this);
   }
 
   @Override
   Response handleDeleteRequest(S3RequestContext context, String bucketName) throws IOException, OS3Exception {
     try {
-      Response response = delegate.handleDeleteRequest(context, bucketName);
+      final Response response = router.handlerFor(context.getOperation())
+          .handleDeleteRequest(context, bucketName);
       auditWriteSuccess(context.getAction(), context.getPerf());
       return response;
     } catch (Exception e) {
@@ -46,7 +47,8 @@ class AuditingBucketOperationHandler extends BucketOperationHandler {
   @Override
   Response handleGetRequest(S3RequestContext context, String bucketName) throws IOException, OS3Exception {
     try {
-      Response response = delegate.handleGetRequest(context, bucketName);
+      final Response response = router.handlerFor(context.getOperation())
+          .handleGetRequest(context, bucketName);
       auditReadSuccess(context.getAction(), context.getPerf());
       return response;
     } catch (Exception e) {
@@ -59,7 +61,8 @@ class AuditingBucketOperationHandler extends BucketOperationHandler {
   Response handlePutRequest(S3RequestContext context, String bucketName, InputStream body)
       throws IOException, OS3Exception {
     try {
-      Response response = delegate.handlePutRequest(context, bucketName, body);
+      final Response response = router.handlerFor(context.getOperation())
+          .handlePutRequest(context, bucketName, body);
       auditWriteSuccess(context.getAction(), context.getPerf());
       return response;
     } catch (Exception e) {

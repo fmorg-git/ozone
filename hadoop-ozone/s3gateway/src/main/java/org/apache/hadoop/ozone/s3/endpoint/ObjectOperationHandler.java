@@ -23,7 +23,7 @@ import javax.ws.rs.core.Response;
 import org.apache.hadoop.ozone.s3.endpoint.ObjectEndpoint.ObjectRequestContext;
 import org.apache.hadoop.ozone.s3.exception.OS3Exception;
 
-/** Interface for handling object operations using chain of responsibility pattern. */
+/** Base class for handlers of resolved object operations. */
 abstract class ObjectOperationHandler extends EndpointBase {
 
   Response handleDeleteRequest(ObjectRequestContext context, String keyName) throws IOException, OS3Exception {

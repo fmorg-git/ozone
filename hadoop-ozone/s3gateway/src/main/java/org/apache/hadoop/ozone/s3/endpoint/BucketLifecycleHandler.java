@@ -25,14 +25,12 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import org.apache.hadoop.ozone.audit.S3GAction;
 import org.apache.hadoop.ozone.client.OzoneBucket;
 import org.apache.hadoop.ozone.client.OzoneLifecycleConfiguration;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
 import org.apache.hadoop.ozone.om.helpers.OmLifecycleConfiguration;
 import org.apache.hadoop.ozone.s3.exception.OS3Exception;
 import org.apache.hadoop.ozone.s3.exception.S3ErrorTable;
-import org.apache.hadoop.ozone.s3.util.S3Consts.QueryParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,18 +43,9 @@ public class BucketLifecycleHandler extends BucketOperationHandler {
   private static final Logger LOG =
       LoggerFactory.getLogger(BucketLifecycleHandler.class);
 
-  private boolean shouldHandle() {
-    return queryParams().get(QueryParams.LIFECYCLE) != null;
-  }
-
   @Override
   Response handleGetRequest(S3RequestContext context, String bucketName)
       throws IOException, OS3Exception {
-    if (!shouldHandle()) {
-      return null;
-    }
-
-    context.setAction(S3GAction.GET_BUCKET_LIFECYCLE);
     return getBucketLifecycleConfiguration(context, bucketName);
   }
 
@@ -64,22 +53,12 @@ public class BucketLifecycleHandler extends BucketOperationHandler {
   Response handlePutRequest(
       S3RequestContext context, String bucketName, InputStream body)
       throws IOException, OS3Exception {
-    if (!shouldHandle()) {
-      return null;
-    }
-
-    context.setAction(S3GAction.PUT_BUCKET_LIFECYCLE);
     return putBucketLifecycleConfiguration(context, bucketName, body);
   }
 
   @Override
   Response handleDeleteRequest(S3RequestContext context, String bucketName)
       throws IOException, OS3Exception {
-    if (!shouldHandle()) {
-      return null;
-    }
-
-    context.setAction(S3GAction.DELETE_BUCKET_LIFECYCLE);
     return deleteBucketLifecycleConfiguration(context, bucketName);
   }
 

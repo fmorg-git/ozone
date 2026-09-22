@@ -17,7 +17,6 @@
 
 package org.apache.hadoop.ozone.s3.endpoint;
 
-import jakarta.annotation.Nullable;
 import java.io.IOException;
 import org.apache.hadoop.ozone.audit.AuditLogger.PerformanceStringBuilder;
 import org.apache.hadoop.ozone.audit.S3GAction;
@@ -28,14 +27,16 @@ class S3RequestContext {
   private final long startNanos;
   private final PerformanceStringBuilder perf;
   private final EndpointBase endpoint;
+  private final S3Operation operation;
   private S3GAction action;
   private OzoneVolume volume;
 
-  S3RequestContext(EndpointBase endpoint, S3GAction action) {
+  S3RequestContext(EndpointBase endpoint, S3Operation operation) {
     this.endpoint = endpoint;
     this.startNanos = Time.monotonicNowNanos();
     this.perf = new PerformanceStringBuilder();
-    this.action = action;
+    this.operation = operation;
+    this.action = operation.getAuditAction();
     endpoint.applyS3Action(action);
   }
 
@@ -45,6 +46,10 @@ class S3RequestContext {
 
   PerformanceStringBuilder getPerf() {
     return perf;
+  }
+
+  S3Operation getOperation() {
+    return operation;
   }
 
   OzoneVolume getVolume() throws IOException {
@@ -63,18 +68,4 @@ class S3RequestContext {
     endpoint.applyS3Action(action);
   }
 
-  /**
-   * This method should be called by each handler with the {@code S3GAction} decided based on request parameters,
-   * {@code null} if it does not handle the request.  {@code action} is stored, if not null, for use in audit logging.
-   *
-   * @param a action as determined by handler
-   * @return true if handler should ignore the request (i.e. if {@code null} is passed)
-   */
-  boolean ignore(@Nullable S3GAction a) {
-    final boolean ignore = a == null;
-    if (!ignore) {
-      setAction(a);
-    }
-    return ignore;
-  }
 }

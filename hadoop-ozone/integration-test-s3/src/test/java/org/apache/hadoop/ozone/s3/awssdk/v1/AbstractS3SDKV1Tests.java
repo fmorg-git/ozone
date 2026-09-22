@@ -1417,6 +1417,34 @@ public abstract class AbstractS3SDKV1Tests extends OzoneTestBase implements NonH
   }
 
   @Test
+  public void testGetObjectAclIsNotImplemented() throws Exception {
+    final String bucketName = getBucketName();
+    final String keyName = getKeyName();
+    final String content = "bar";
+    s3Client.createBucket(bucketName);
+    s3Client.putObject(
+        bucketName, keyName, new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8)), new ObjectMetadata());
+
+    final AmazonServiceException amazonServiceException = assertThrows(
+        AmazonServiceException.class, () -> s3Client.getObjectAcl(bucketName, keyName));
+    assertEquals("NotImplemented", amazonServiceException.getErrorCode());
+    assertEquals(501, amazonServiceException.getStatusCode());
+    assertEquals(ErrorType.Service, amazonServiceException.getErrorType());
+  }
+
+  @Test
+  public void testGetBucketAccelerateConfigurationIsNotImplemented() {
+    final String bucketName = getBucketName();
+    s3Client.createBucket(bucketName);
+
+    final AmazonServiceException amazonServiceException = assertThrows(
+        AmazonServiceException.class, () -> s3Client.getBucketAccelerateConfiguration(bucketName));
+    assertEquals("NotImplemented", amazonServiceException.getErrorCode());
+    assertEquals(501, amazonServiceException.getStatusCode());
+    assertEquals(ErrorType.Service, amazonServiceException.getErrorType());
+  }
+
+  @Test
   public void testGetObject() throws Exception {
     final String bucketName = getBucketName();
     final String keyName = getKeyName();
@@ -2852,6 +2880,7 @@ public abstract class AbstractS3SDKV1Tests extends OzoneTestBase implements NonH
                                                                          Map<String, String> tags) throws Exception {
       GeneratePresignedUrlRequest initMPUPresignUrlRequest =
           new GeneratePresignedUrlRequest(BUCKET_NAME, keyName).withMethod(HttpMethod.POST).withExpiration(expiration);
+      initMPUPresignUrlRequest.addRequestParameter(S3Consts.QueryParams.UPLOADS, "");
 
       userMetadata.forEach((k, v) -> {
         initMPUPresignUrlRequest.putCustomRequestHeader(CUSTOM_METADATA_HEADER_PREFIX + k, v);

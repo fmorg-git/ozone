@@ -21,16 +21,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
 import java.util.function.Supplier;
-import javax.ws.rs.HttpMethod;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import org.apache.hadoop.ozone.audit.S3GAction;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
 import org.apache.hadoop.ozone.om.exceptions.OMException.ResultCodes;
 import org.apache.hadoop.ozone.s3.endpoint.ObjectEndpoint.ObjectRequestContext;
 import org.apache.hadoop.ozone.s3.exception.OS3Exception;
 import org.apache.hadoop.ozone.s3.exception.S3ErrorTable;
-import org.apache.hadoop.ozone.s3.util.S3Consts;
 import org.apache.ratis.util.MemoizedSupplier;
 
 /** Handle requests for object tagging. */
@@ -41,10 +38,6 @@ class ObjectTaggingHandler extends ObjectOperationHandler {
 
   @Override
   Response handlePutRequest(ObjectRequestContext context, String keyName, InputStream body) throws IOException {
-    if (context.ignore(getAction())) {
-      return null;
-    }
-
     try {
       S3Tagging tagging;
       try {
@@ -76,9 +69,6 @@ class ObjectTaggingHandler extends ObjectOperationHandler {
   @Override
   Response handleDeleteRequest(ObjectRequestContext context, String keyName)
       throws IOException, OS3Exception {
-    if (context.ignore(getAction())) {
-      return null;
-    }
     try {
       context.getBucket().deleteObjectTagging(keyName);
       getMetrics().updateDeleteObjectTaggingSuccessStats(context.getStartNanos());
@@ -101,9 +91,6 @@ class ObjectTaggingHandler extends ObjectOperationHandler {
   @Override
   Response handleGetRequest(ObjectRequestContext context, String keyName)
       throws IOException, OS3Exception {
-    if (context.ignore(getAction())) {
-      return null;
-    }
     try {
       Map<String, String> tagMap = context.getBucket().getObjectTagging(keyName);
       getMetrics().updateGetObjectTaggingSuccessStats(context.getStartNanos());
@@ -114,20 +101,4 @@ class ObjectTaggingHandler extends ObjectOperationHandler {
     }
   }
 
-  private S3GAction getAction() {
-    if (queryParams().get(S3Consts.QueryParams.TAGGING) == null) {
-      return null;
-    }
-
-    switch (getContext().getMethod()) {
-    case HttpMethod.DELETE:
-      return S3GAction.DELETE_OBJECT_TAGGING;
-    case HttpMethod.GET:
-      return S3GAction.GET_OBJECT_TAGGING;
-    case HttpMethod.PUT:
-      return S3GAction.PUT_OBJECT_TAGGING;
-    default:
-      return null;
-    }
-  }
 }

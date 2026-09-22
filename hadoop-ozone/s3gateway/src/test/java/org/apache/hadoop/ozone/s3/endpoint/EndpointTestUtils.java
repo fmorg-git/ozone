@@ -256,12 +256,15 @@ public final class EndpointTestUtils {
    * @return upload ID */
   public static String initiateMultipartUpload(ObjectEndpoint subject, String bucket, String key)
       throws IOException, OS3Exception {
+    subject.queryParamsForTest().set(S3Consts.QueryParams.UPLOADS, "");
     try (Response response = subject.initializeMultipartUpload(bucket, key)) {
       assertEquals(HttpStatus.SC_OK, response.getStatus());
-      MultipartUploadInitiateResponse entity = (MultipartUploadInitiateResponse) response.getEntity();
-      String uploadID = entity.getUploadID();
+      final MultipartUploadInitiateResponse entity = (MultipartUploadInitiateResponse) response.getEntity();
+      final String uploadID = entity.getUploadID();
       assertNotNull(uploadID, "uploadID == null");
       return uploadID;
+    } finally {
+      subject.queryParamsForTest().unset(S3Consts.QueryParams.UPLOADS);
     }
   }
 

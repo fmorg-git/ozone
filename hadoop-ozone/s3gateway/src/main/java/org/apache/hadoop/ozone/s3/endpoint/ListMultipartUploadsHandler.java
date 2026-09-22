@@ -21,7 +21,6 @@ import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.newError;
 
 import java.io.IOException;
 import javax.ws.rs.core.Response;
-import org.apache.hadoop.ozone.audit.S3GAction;
 import org.apache.hadoop.ozone.client.OzoneBucket;
 import org.apache.hadoop.ozone.client.OzoneMultipartUploadList;
 import org.apache.hadoop.ozone.s3.exception.OS3Exception;
@@ -37,12 +36,6 @@ class ListMultipartUploadsHandler extends BucketOperationHandler {
   @Override
   Response handleGetRequest(S3RequestContext context, String bucketName)
       throws IOException, OS3Exception {
-
-    if (queryParams().get(QueryParams.UPLOADS) == null) {
-      return null; // Not responsible for this request
-    }
-
-    context.setAction(S3GAction.LIST_MULTIPART_UPLOAD);
 
     final String keyMarker = queryParams().get(QueryParams.KEY_MARKER);
     final int maxUploads = Math.min(queryParams().getInt(QueryParams.MAX_UPLOADS, 1000), 1000);

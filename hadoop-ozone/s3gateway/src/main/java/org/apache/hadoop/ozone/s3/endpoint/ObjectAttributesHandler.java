@@ -26,7 +26,6 @@ import static org.apache.hadoop.ozone.s3.util.S3Consts.GET_OBJECT_ATTRIBUTES_MAX
 import static org.apache.hadoop.ozone.s3.util.S3Consts.MAX_PARTS_HEADER;
 import static org.apache.hadoop.ozone.s3.util.S3Consts.OBJECT_ATTRIBUTES_HEADER;
 import static org.apache.hadoop.ozone.s3.util.S3Consts.PART_NUMBER_MARKER_HEADER;
-import static org.apache.hadoop.ozone.s3.util.S3Consts.QueryParams;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -40,7 +39,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.ozone.OzoneConsts;
-import org.apache.hadoop.ozone.audit.S3GAction;
 import org.apache.hadoop.ozone.client.OzoneKey;
 import org.apache.hadoop.ozone.client.S3HeadObjectAttributes;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
@@ -104,12 +102,6 @@ class ObjectAttributesHandler extends ObjectOperationHandler {
   @Override
   Response handleGetRequest(ObjectRequestContext context, String keyPath)
       throws IOException, OS3Exception {
-
-    if (queryParams().get(QueryParams.ATTRIBUTES) == null) {
-      return null;
-    }
-
-    context.setAction(S3GAction.GET_OBJECT_ATTRIBUTES);
 
     final long startNanos = context.getStartNanos();
     try {

@@ -23,15 +23,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
 import java.util.function.Supplier;
-import javax.ws.rs.HttpMethod;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import org.apache.hadoop.ozone.audit.S3GAction;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
 import org.apache.hadoop.ozone.om.exceptions.OMException.ResultCodes;
 import org.apache.hadoop.ozone.s3.exception.OS3Exception;
 import org.apache.hadoop.ozone.s3.exception.S3ErrorTable;
-import org.apache.hadoop.ozone.s3.util.S3Consts;
 import org.apache.ratis.util.MemoizedSupplier;
 
 /**
@@ -45,12 +42,6 @@ public class BucketTaggingHandler extends BucketOperationHandler {
   @Override
   public Response handlePutRequest(S3RequestContext context, String bucketName, InputStream body)
       throws IOException, OS3Exception {
-    S3GAction action = resolveAction();
-    if (action == null) {
-      return null;
-    }
-    context.setAction(action);
-
     try {
       S3Tagging tagging;
       try {
@@ -83,12 +74,6 @@ public class BucketTaggingHandler extends BucketOperationHandler {
   @Override
   public Response handleDeleteRequest(S3RequestContext context, String bucketName)
       throws IOException, OS3Exception {
-    S3GAction action = resolveAction();
-    if (action == null) {
-      return null;
-    }
-    context.setAction(action);
-
     try {
       context.getVolume().getBucket(bucketName).deleteBucketTagging();
       getMetrics().updateDeleteBucketTaggingSuccessStats(context.getStartNanos());
@@ -108,12 +93,6 @@ public class BucketTaggingHandler extends BucketOperationHandler {
   @Override
   public Response handleGetRequest(S3RequestContext context, String bucketName)
       throws IOException, OS3Exception {
-    S3GAction action = resolveAction();
-    if (action == null) {
-      return null;
-    }
-    context.setAction(action);
-
     try {
       Map<String, String> tagMap = context.getVolume().getBucket(bucketName).getBucketTagging();
       if (tagMap.isEmpty()) {
@@ -133,20 +112,4 @@ public class BucketTaggingHandler extends BucketOperationHandler {
     }
   }
 
-  private S3GAction resolveAction() {
-    if (queryParams().get(S3Consts.QueryParams.TAGGING) == null) {
-      return null;
-    }
-
-    switch (getContext().getMethod()) {
-    case HttpMethod.DELETE:
-      return S3GAction.DELETE_BUCKET_TAGGING;
-    case HttpMethod.GET:
-      return S3GAction.GET_BUCKET_TAGGING;
-    case HttpMethod.PUT:
-      return S3GAction.PUT_BUCKET_TAGGING;
-    default:
-      return null;
-    }
-  }
 }

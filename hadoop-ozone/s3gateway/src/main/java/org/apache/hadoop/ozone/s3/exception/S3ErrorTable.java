@@ -17,6 +17,7 @@
 
 package org.apache.hadoop.ozone.s3.exception;
 
+import static java.net.HttpURLConnection.HTTP_BAD_METHOD;
 import static java.net.HttpURLConnection.HTTP_BAD_REQUEST;
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.net.HttpURLConnection.HTTP_FORBIDDEN;
@@ -28,6 +29,8 @@ import static org.apache.hadoop.ozone.OzoneConsts.S3_REQUEST_HEADER_METADATA_SIZ
 import static org.apache.hadoop.ozone.s3.util.S3Consts.RANGE_NOT_SATISFIABLE;
 
 import jakarta.annotation.Nullable;
+import java.util.Set;
+import java.util.TreeSet;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -130,6 +133,9 @@ public enum S3ErrorTable {
   NOT_IMPLEMENTED(
       "NotImplemented", "This part of feature is not implemented yet.",
       HTTP_NOT_IMPLEMENTED),
+
+  METHOD_NOT_ALLOWED(
+      "MethodNotAllowed", "The specified method is not allowed against this resource.", HTTP_BAD_METHOD),
 
   NO_OVERWRITE(
       "Conflict", "Cannot overwrite file with directory", HTTP_CONFLICT),
@@ -313,6 +319,18 @@ public enum S3ErrorTable {
   /** Creates new {@link OS3Exception} for {@link S3ErrorTable} and {@code resource}. */
   public static OS3Exception newError(S3ErrorTable errorCode, @Nullable String resource) {
     return new OS3Exception(errorCode, null, resource);
+  }
+
+  /** Creates the AWS-shaped error for mutually exclusive subresource selectors. */
+  public static OS3Exception newConflictingQueryParameters(Set<String> parameters) {
+    final Set<String> sortedParameters = new TreeSet<>(parameters);
+    final String firstParameter = sortedParameters.iterator().next();
+    final OS3Exception exception = newError(INVALID_ARGUMENT, firstParameter);
+    exception.setErrorMessage("Conflicting query string parameters: " + String.join(", ", sortedParameters));
+    exception.setArgumentName("ResourceType");
+    exception.setArgumentValue(firstParameter);
+    exception.setResource(null);
+    return exception;
   }
 
   /** Creates new {@link OS3Exception} for {@link S3ErrorTable} and {@code cause}. */
