@@ -49,6 +49,7 @@ public class BucketCrudHandler extends BucketOperationHandler {
     context.setAction(S3GAction.CREATE_BUCKET);
     // CreateBucket has no existing bucket to read an owner from, so AWS ignores
     // x-amz-expected-bucket-owner here. Satisfy the router's invariant directly.
+    context.markOwnerVerified();
 
     try {
       getClient().getObjectStore().createS3Bucket(bucketName);
@@ -72,7 +73,8 @@ public class BucketCrudHandler extends BucketOperationHandler {
     context.setAction(S3GAction.DELETE_BUCKET);
 
     try {
-        context.getVolume().deleteBucket(bucketName);
+      verifyBucketOwner(context, bucketName);
+      context.getVolume().deleteBucket(bucketName);
     } catch (Exception ex) {
       getMetrics().updateDeleteBucketFailureStats(context.getStartNanos());
       throw ex;

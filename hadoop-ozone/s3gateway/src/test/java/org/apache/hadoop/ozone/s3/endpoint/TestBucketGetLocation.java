@@ -18,7 +18,12 @@
 package org.apache.hadoop.ozone.s3.endpoint;
 
 import static org.apache.hadoop.ozone.s3.endpoint.EndpointTestUtils.assertErrorResponse;
+import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.BUCKET_OWNER_MISMATCH;
+import static org.apache.hadoop.ozone.s3.util.S3Consts.EXPECTED_BUCKET_OWNER_HEADER;
+import static org.mockito.Mockito.when;
+
 import java.io.IOException;
+import org.apache.hadoop.ozone.client.BucketArgs;
 import org.apache.hadoop.ozone.client.OzoneClient;
 import org.apache.hadoop.ozone.client.OzoneClientStub;
 import org.apache.hadoop.ozone.s3.exception.S3ErrorTable;
@@ -49,4 +54,15 @@ public class TestBucketGetLocation {
     assertErrorResponse(S3ErrorTable.NOT_IMPLEMENTED, () -> bucketEndpoint.get(BUCKET_NAME));
   }
 
+  @Test
+  public void getBucketLocationOwnerMismatchReturnsForbidden() throws IOException {
+    final String ownedBucket = "owned-location-bucket";
+    bucketEndpoint.getClient().getObjectStore().getS3Volume()
+        .createBucket(ownedBucket, BucketArgs.newBuilder().setOwner("real-owner").build());
+    bucketEndpoint.queryParamsForTest().set(QueryParams.LOCATION, "");
+    when(bucketEndpoint.getHeaders().getHeaderString(EXPECTED_BUCKET_OWNER_HEADER))
+        .thenReturn("wrong-owner");
+
+    assertErrorResponse(BUCKET_OWNER_MISMATCH, () -> bucketEndpoint.get(ownedBucket));
+  }
 }

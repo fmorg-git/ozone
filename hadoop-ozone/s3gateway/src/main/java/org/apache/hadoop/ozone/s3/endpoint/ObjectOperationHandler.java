@@ -49,6 +49,11 @@ abstract class ObjectOperationHandler extends EndpointBase {
     return Scope.OBJECT;
   }
 
+  /** Convenience form of {@link #verifyBucketOwner(S3RequestContext, String)} for object requests. */
+  final void verifyBucketOwner(ObjectRequestContext context) throws IOException {
+    verifyBucketOwner(context, context.getBucketName());
+  }
+
   ObjectOperationHandler copyDependenciesFrom(EndpointBase other) {
     other.copyDependenciesTo(this);
     return this;

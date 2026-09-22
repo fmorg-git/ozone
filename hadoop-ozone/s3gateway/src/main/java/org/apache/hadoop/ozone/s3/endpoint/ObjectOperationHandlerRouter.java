@@ -89,6 +89,7 @@ final class ObjectOperationHandlerRouter extends ObjectOperationHandler {
       SubresourceS3GAction.applyRouterFailure(context, method, e, subresourceScope());
       getMetrics().updateSubresourceRoutingFailureStats(context.getStartNanos());
       recordRouterValidationFailure(context, method, e);
+      verifyBucketOwner(context);
       throw e;
     }
     final Response response;
@@ -103,6 +104,10 @@ final class ObjectOperationHandlerRouter extends ObjectOperationHandler {
     }
     if (response == null) {
       throw new IllegalStateException("handler returned null for " + method);
+    }
+    if (!context.isOwnerVerified()) {
+      throw new IllegalStateException(
+          handler.getClass().getSimpleName() + " did not call verifyBucketOwner for " + method);
     }
     return response;
   }

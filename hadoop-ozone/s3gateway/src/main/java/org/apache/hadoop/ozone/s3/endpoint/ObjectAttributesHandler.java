@@ -109,7 +109,8 @@ class ObjectAttributesHandler extends ObjectOperationHandler {
 
     final long startNanos = context.getStartNanos();
     try {
-        final Set<String> requestedAttributes = parseAttributesHeader(keyPath);
+      verifyBucketOwner(context);
+      final Set<String> requestedAttributes = parseAttributesHeader(keyPath);
       final String bucketName = context.getBucketName();
 
       OzoneKey key;

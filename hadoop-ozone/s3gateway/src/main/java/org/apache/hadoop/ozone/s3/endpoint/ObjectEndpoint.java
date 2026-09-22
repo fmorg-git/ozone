@@ -251,9 +251,9 @@ public class ObjectEndpoint extends ObjectOperationHandler {
       } else if (copyHeader != null) {
         context.setAction(S3GAction.COPY_OBJECT);
       }
-      final OzoneBucket bucket = resolvePutDestinationBucket(context, copyHeader);
-      // Already resolved by context.getBucket() above, so this does not re-authorize.
+      verifyBucketOwner(context);
       final OzoneVolume volume = context.getVolume();
+      final OzoneBucket bucket = context.getBucket();
       final String lengthHeader = getHeaders().getHeaderString(HttpHeaders.CONTENT_LENGTH);
       long length = lengthHeader != null ? Long.parseLong(lengthHeader) : 0;
 

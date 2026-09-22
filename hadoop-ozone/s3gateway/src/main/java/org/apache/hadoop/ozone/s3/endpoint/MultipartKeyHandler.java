@@ -54,7 +54,8 @@ class MultipartKeyHandler extends ObjectOperationHandler {
     final AuditLogger.PerformanceStringBuilder perf = context.getPerf();
 
     try {
-        final int maxParts = validateMaxParts(queryParams().getInt(QueryParams.MAX_PARTS, 1000));
+      verifyBucketOwner(context);
+      final int maxParts = validateMaxParts(queryParams().getInt(QueryParams.MAX_PARTS, 1000));
       final int partMarker = parseListPartsMarker(queryParams().get(QueryParams.PART_NUMBER_MARKER));
       final Response response = listParts(context.getBucket(), keyPath, uploadId,
           partMarker, maxParts, perf);
@@ -76,7 +77,8 @@ class MultipartKeyHandler extends ObjectOperationHandler {
     context.setAction(S3GAction.ABORT_MULTIPART_UPLOAD);
 
     try {
-        final Response response = abortMultipartUpload(context.getVolume(),
+      verifyBucketOwner(context);
+      final Response response = abortMultipartUpload(context.getVolume(),
           context.getBucketName(), keyPath, uploadId);
 
       getMetrics().updateAbortMultipartUploadSuccessStats(context.getStartNanos());

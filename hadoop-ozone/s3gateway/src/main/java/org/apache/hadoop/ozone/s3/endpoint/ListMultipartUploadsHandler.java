@@ -54,7 +54,8 @@ class ListMultipartUploadsHandler extends BucketOperationHandler {
     long startNanos = context.getStartNanos();
 
     try {
-        OzoneBucket bucket = context.getBucket(bucketName);
+      verifyBucketOwner(context, bucketName);
+      OzoneBucket bucket = context.getBucket(bucketName);
       OzoneMultipartUploadList ozoneMultipartUploadList =
           bucket.listMultipartUploads(prefix, keyMarker, uploadIdMarker, maxUploads);
 

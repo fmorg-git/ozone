@@ -38,6 +38,7 @@ class ObjectGetTorrentHandler extends ObjectOperationHandler {
   Response handleGetRequest(ObjectRequestContext context, String keyName)
       throws IOException, OS3Exception {
     context.setAction(S3GAction.GET_OBJECT_TORRENT);
+    verifyBucketOwner(context);
     throw newError(NOT_IMPLEMENTED, "GetObjectTorrent");
   }
 }

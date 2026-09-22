@@ -2562,6 +2562,29 @@ public abstract class AbstractS3SDKV1Tests extends OzoneTestBase implements NonH
     }
 
     @Test
+    public void testPresignedUrlPostObjectWithoutSubresourceReturnsMethodNotAllowed() throws Exception {
+      final String keyName = getKeyName();
+
+      try (InputStream is = new ByteArrayInputStream(CONTENT.getBytes(StandardCharsets.UTF_8))) {
+        s3Client.putObject(BUCKET_NAME, keyName, is, new ObjectMetadata());
+      }
+
+      GeneratePresignedUrlRequest generatePresignedUrlRequest =
+          new GeneratePresignedUrlRequest(BUCKET_NAME, keyName).withMethod(HttpMethod.POST).withExpiration(expiration);
+      URL presignedUrl = s3Client.generatePresignedUrl(generatePresignedUrlRequest);
+
+      HttpURLConnection connection = null;
+      try {
+        connection = S3SDKTestUtils.openHttpURLConnection(presignedUrl, "POST", null, new byte[0]);
+        assertEquals(HttpURLConnection.HTTP_BAD_METHOD, connection.getResponseCode());
+      } finally {
+        if (connection != null) {
+          connection.disconnect();
+        }
+      }
+    }
+
+    @Test
     public void testPresignedUrlGetObjectTorrentNotImplemented() throws Exception {
       final String keyName = getKeyName();
 
@@ -2852,6 +2875,9 @@ public abstract class AbstractS3SDKV1Tests extends OzoneTestBase implements NonH
                                                                          Map<String, String> tags) throws Exception {
       GeneratePresignedUrlRequest initMPUPresignUrlRequest =
           new GeneratePresignedUrlRequest(BUCKET_NAME, keyName).withMethod(HttpMethod.POST).withExpiration(expiration);
+      // InitiateMultipartUpload is selected by the ?uploads subresource. The v1 SDK has no
+      // dedicated presigner for it, so the selector has to be added to the signed request.
+      initMPUPresignUrlRequest.addRequestParameter("uploads", "");
 
       userMetadata.forEach((k, v) -> {
         initMPUPresignUrlRequest.putCustomRequestHeader(CUSTOM_METADATA_HEADER_PREFIX + k, v);

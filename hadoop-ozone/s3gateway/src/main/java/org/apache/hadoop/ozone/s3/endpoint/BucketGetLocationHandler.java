@@ -37,6 +37,7 @@ class BucketGetLocationHandler extends BucketOperationHandler {
   Response handleGetRequest(S3RequestContext context, String bucketName)
       throws IOException, OS3Exception {
     context.setAction(S3GAction.GET_BUCKET_LOCATION);
+    verifyBucketOwner(context, bucketName);
     throw newError(NOT_IMPLEMENTED, "GetBucketLocation");
   }
 }

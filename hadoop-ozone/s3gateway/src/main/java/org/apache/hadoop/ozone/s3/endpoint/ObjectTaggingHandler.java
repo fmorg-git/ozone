@@ -42,7 +42,8 @@ class ObjectTaggingHandler extends ObjectOperationHandler {
     context.setAction(S3GAction.PUT_OBJECT_TAGGING);
 
     try {
-        S3Tagging tagging;
+      verifyBucketOwner(context);
+      S3Tagging tagging;
       try {
         tagging = UNMARSHALLER.get().readFrom(body);
         tagging.validate();
@@ -75,7 +76,8 @@ class ObjectTaggingHandler extends ObjectOperationHandler {
     context.setAction(S3GAction.DELETE_OBJECT_TAGGING);
 
     try {
-        context.getBucket().deleteObjectTagging(keyName);
+      verifyBucketOwner(context);
+      context.getBucket().deleteObjectTagging(keyName);
       getMetrics().updateDeleteObjectTaggingSuccessStats(context.getStartNanos());
       return Response.noContent().build();
     } catch (OMException ex) {
@@ -99,7 +101,8 @@ class ObjectTaggingHandler extends ObjectOperationHandler {
     context.setAction(S3GAction.GET_OBJECT_TAGGING);
 
     try {
-        Map<String, String> tagMap = context.getBucket().getObjectTagging(keyName);
+      verifyBucketOwner(context);
+      Map<String, String> tagMap = context.getBucket().getObjectTagging(keyName);
       getMetrics().updateGetObjectTaggingSuccessStats(context.getStartNanos());
       return Response.ok(S3Tagging.fromMap(tagMap), MediaType.APPLICATION_XML_TYPE).build();
     } catch (Exception e) {

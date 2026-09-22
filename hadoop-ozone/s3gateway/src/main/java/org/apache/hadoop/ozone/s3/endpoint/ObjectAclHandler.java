@@ -38,7 +38,8 @@ class ObjectAclHandler extends ObjectOperationHandler {
   Response handleGetRequest(ObjectRequestContext context, String keyName) throws IOException {
     context.setAction(S3GAction.GET_OBJECT_ACL);
     try {
-        throw newError(NOT_IMPLEMENTED, keyName);
+      verifyBucketOwner(context);
+      throw newError(NOT_IMPLEMENTED, keyName);
     } catch (Exception e) {
       getMetrics().updateGetObjectAclFailureStats(context.getStartNanos());
       throw e;
@@ -49,7 +50,8 @@ class ObjectAclHandler extends ObjectOperationHandler {
   Response handlePutRequest(ObjectRequestContext context, String keyName, InputStream body) throws IOException {
     context.setAction(S3GAction.PUT_OBJECT_ACL);
     try {
-        throw newError(NOT_IMPLEMENTED, keyName);
+      verifyBucketOwner(context);
+      throw newError(NOT_IMPLEMENTED, keyName);
     } catch (Exception e) {
       getMetrics().updatePutObjectAclFailureStats(context.getStartNanos());
       throw e;

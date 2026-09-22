@@ -18,10 +18,14 @@
 package org.apache.hadoop.ozone.s3.endpoint;
 
 import static org.apache.hadoop.ozone.s3.endpoint.EndpointTestUtils.assertErrorResponse;
+import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.BUCKET_OWNER_MISMATCH;
 import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.NOT_IMPLEMENTED;
+import static org.apache.hadoop.ozone.s3.util.S3Consts.EXPECTED_BUCKET_OWNER_HEADER;
 import static org.apache.hadoop.ozone.s3.util.S3Consts.QueryParams;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.when;
+
 import java.io.IOException;
 import org.apache.hadoop.hdds.conf.OzoneConfiguration;
 import org.apache.hadoop.ozone.OzoneConfigKeys;
@@ -101,4 +105,19 @@ public class TestObjectAclHandler {
     assertEquals(KEY_NAME, exception.getResource());
   }
 
+  @Test
+  public void ownerVerificationFailureUsesObjectAclActionAndMetric() {
+    final ObjectEndpoint.ObjectRequestContext context =
+        objectEndpoint.new ObjectRequestContext(S3GAction.GET_KEY, BUCKET_NAME);
+    final S3GatewayMetrics metrics = aclHandler.getMetrics();
+    final long before = metrics.getGetObjectAclFailure();
+    when(aclHandler.getHeaders().getHeaderString(EXPECTED_BUCKET_OWNER_HEADER)).thenReturn("wrong-owner");
+
+    final OS3Exception exception =
+        assertThrows(OS3Exception.class, () -> aclHandler.handleGetRequest(context, KEY_NAME));
+
+    assertEquals(BUCKET_OWNER_MISMATCH.getCode(), exception.getCode());
+    assertEquals(S3GAction.GET_OBJECT_ACL, context.getAction());
+    assertEquals(1L, metrics.getGetObjectAclFailure() - before);
+  }
 }

@@ -46,7 +46,8 @@ public class BucketTaggingHandler extends BucketOperationHandler {
     context.setAction(S3GAction.PUT_BUCKET_TAGGING);
 
     try {
-        S3Tagging tagging;
+      verifyBucketOwner(context, bucketName);
+      S3Tagging tagging;
       try {
         tagging = UNMARSHALLER.get().readFrom(body);
         tagging.validate();
@@ -80,7 +81,8 @@ public class BucketTaggingHandler extends BucketOperationHandler {
     context.setAction(S3GAction.DELETE_BUCKET_TAGGING);
 
     try {
-        context.getBucket(bucketName).deleteBucketTagging();
+      verifyBucketOwner(context, bucketName);
+      context.getBucket(bucketName).deleteBucketTagging();
       getMetrics().updateDeleteBucketTaggingSuccessStats(context.getStartNanos());
       return Response.noContent().build();
     } catch (OMException ex) {
@@ -101,7 +103,8 @@ public class BucketTaggingHandler extends BucketOperationHandler {
     context.setAction(S3GAction.GET_BUCKET_TAGGING);
 
     try {
-        Map<String, String> tagMap = context.getBucket(bucketName).getBucketTagging();
+      verifyBucketOwner(context, bucketName);
+      Map<String, String> tagMap = context.getBucket(bucketName).getBucketTagging();
       if (tagMap.isEmpty()) {
         throw S3ErrorTable.newError(S3ErrorTable.NO_SUCH_TAG_SET, bucketName);
       }

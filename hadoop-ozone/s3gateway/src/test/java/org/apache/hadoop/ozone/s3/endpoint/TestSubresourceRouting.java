@@ -183,6 +183,17 @@ public class TestSubresourceRouting {
     assertErrorResponse(INVALID_ARGUMENT, () -> get(objectEndpoint, BUCKET_NAME, KEY_NAME));
   }
 
+  @Test
+  public void objectDeleteEmptyUploadIdWithOwnerMismatchReturnsForbidden() throws IOException {
+    final String ownedBucket = "owned-empty-upload-bucket";
+    objectEndpoint.getClient().getObjectStore().getS3Volume()
+        .createBucket(ownedBucket, BucketArgs.newBuilder().setOwner("real-owner").build());
+    objectEndpoint.queryParamsForTest().set(QueryParams.UPLOAD_ID, "");
+    when(objectEndpoint.getHeaders().getHeaderString(EXPECTED_BUCKET_OWNER_HEADER))
+        .thenReturn("wrong-owner");
+
+    assertErrorResponse(BUCKET_OWNER_MISMATCH, () -> delete(objectEndpoint, ownedBucket, KEY_NAME));
+  }
 
   @Test
   public void objectDeletePartNumberReturnsNotImplementedWithoutDeletingObject() throws OS3Exception, IOException {
@@ -424,10 +435,64 @@ public class TestSubresourceRouting {
     assertErrorResponse(S3ErrorTable.NOT_IMPLEMENTED, () -> get(objectEndpoint, BUCKET_NAME, KEY_NAME));
   }
 
+  @Test
+  public void objectGetUnsupportedSubresourceWithOwnerMismatchReturnsForbidden() throws IOException {
+    final String ownedBucket = "owned-bucket";
+    objectEndpoint.getClient().getObjectStore().getS3Volume()
+        .createBucket(ownedBucket, BucketArgs.newBuilder().setOwner("real-owner").build());
+    objectEndpoint.queryParamsForTest().set("website", "");
+    when(objectEndpoint.getHeaders().getHeaderString(EXPECTED_BUCKET_OWNER_HEADER))
+        .thenReturn("wrong-owner");
 
+    // Owner mismatch (403) takes precedence over the unsupported-subresource 501
+    // on the router failure path.
+    assertErrorResponse(BUCKET_OWNER_MISMATCH, () -> get(objectEndpoint, ownedBucket, KEY_NAME));
+  }
 
+  @Test
+  public void objectHeadUnsupportedSubresourceWithOwnerMismatchReturnsForbidden() throws IOException {
+    final String ownedBucket = "owned-head-routing-bucket";
+    objectEndpoint.getClient().getObjectStore().getS3Volume()
+        .createBucket(ownedBucket, BucketArgs.newBuilder().setOwner("real-owner").build());
+    objectEndpoint.queryParamsForTest().set(QueryParams.ACL, "");
+    when(objectEndpoint.getHeaders().getHeaderString(EXPECTED_BUCKET_OWNER_HEADER))
+        .thenReturn("wrong-owner");
 
+    assertErrorResponse(BUCKET_OWNER_MISMATCH,
+        () -> objectEndpoint.head(ownedBucket, KEY_NAME));
+  }
 
+  @Test
+  public void objectHeadUnsupportedSubresourceMissingBucketReturnsS3Error() {
+    objectEndpoint.queryParamsForTest().set(QueryParams.ACL, "");
+    when(objectEndpoint.getHeaders().getHeaderString(EXPECTED_BUCKET_OWNER_HEADER))
+        .thenReturn("expected-owner");
+
+    assertErrorResponse(S3ErrorTable.NO_SUCH_BUCKET,
+        () -> objectEndpoint.head("missing-head-routing-bucket", KEY_NAME));
+  }
+
+  @Test
+  public void objectPostUnsupportedSubresourceMissingBucketReturnsS3Error() throws IOException {
+    objectEndpoint.queryParamsForTest().set("restore", "");
+    when(objectEndpoint.getHeaders().getHeaderString(EXPECTED_BUCKET_OWNER_HEADER))
+        .thenReturn("expected-owner");
+
+    assertErrorResponse(S3ErrorTable.NO_SUCH_BUCKET,
+        () -> objectEndpoint.rejectInvalidPostSubresource("missing-post-routing-bucket"));
+  }
+
+  @Test
+  public void bucketGetUnsupportedSubresourceWithOwnerMismatchReturnsForbidden() throws IOException {
+    final String ownedBucket = "owned-routing-bucket";
+    bucketEndpoint.getClient().getObjectStore().getS3Volume()
+        .createBucket(ownedBucket, BucketArgs.newBuilder().setOwner("real-owner").build());
+    bucketEndpoint.queryParamsForTest().set("policy", "");
+    when(bucketEndpoint.getHeaders().getHeaderString(EXPECTED_BUCKET_OWNER_HEADER))
+        .thenReturn("wrong-owner");
+
+    assertErrorResponse(BUCKET_OWNER_MISMATCH, () -> bucketEndpoint.get(ownedBucket));
+  }
 
   @Test
   public void bucketGetAmbiguousSelectorsReturnInvalidArgument() {
@@ -505,7 +570,52 @@ public class TestSubresourceRouting {
     assertNotSame(firstRequest.subresourceRouterForTest(), secondRequest.subresourceRouterForTest());
   }
 
+  @Test
+  public void objectHandlerMissingOwnerVerificationFailsAtDispatch() throws IOException {
+    final ObjectEndpoint endpoint = EndpointBuilder.newObjectEndpointBuilder()
+        .setClient(objectEndpoint.getClient())
+        .build();
+    final ObjectOperationHandler handler = new ObjectOperationHandler() {
+      @Override
+      Response handleGetRequest(ObjectEndpoint.ObjectRequestContext context, String keyName) {
+        return Response.ok().build();
+      }
+    };
+    handler.copyDependenciesFrom(endpoint);
+    final ObjectOperationHandlerRouter router = new ObjectOperationHandlerRouter.Builder()
+        .plainGet(handler, Collections.emptySet())
+        .build();
+    router.copyDependenciesFrom(endpoint);
+    final ObjectEndpoint.ObjectRequestContext context =
+        endpoint.new ObjectRequestContext(S3GAction.GET_KEY, BUCKET_NAME);
 
+    final IllegalStateException exception = assertThrows(IllegalStateException.class,
+        () -> router.handleGetRequest(context, KEY_NAME));
+    assertTrue(exception.getMessage().contains("did not call verifyBucketOwner for GET"));
+  }
+
+  @Test
+  public void bucketHandlerMissingOwnerVerificationFailsAtDispatch() throws IOException {
+    final BucketEndpoint endpoint = EndpointBuilder.newBucketEndpointBuilder()
+        .setClient(bucketEndpoint.getClient())
+        .build();
+    final BucketOperationHandler handler = new BucketOperationHandler() {
+      @Override
+      Response handleGetRequest(S3RequestContext context, String bucketName) {
+        return Response.ok().build();
+      }
+    };
+    handler.copyDependenciesFrom(endpoint);
+    final BucketOperationHandlerRouter router = new BucketOperationHandlerRouter.Builder()
+        .plainGet(handler, Collections.emptySet())
+        .build();
+    router.copyDependenciesFrom(endpoint);
+    final S3RequestContext context = new S3RequestContext(endpoint, S3GAction.GET_BUCKET);
+
+    final IllegalStateException exception = assertThrows(IllegalStateException.class,
+        () -> router.handleGetRequest(context, BUCKET_NAME));
+    assertTrue(exception.getMessage().contains("did not call verifyBucketOwner for GET"));
+  }
 
 
 }

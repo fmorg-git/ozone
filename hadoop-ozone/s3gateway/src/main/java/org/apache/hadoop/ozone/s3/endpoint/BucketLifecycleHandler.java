@@ -60,6 +60,7 @@ public class BucketLifecycleHandler extends BucketOperationHandler {
 
   public Response deleteBucketLifecycleConfiguration(S3RequestContext context, String bucketName)
       throws IOException, OS3Exception {
+    verifyBucketOwner(context, bucketName);
     deleteLifecycleConfiguration(context, bucketName);
     return Response.noContent().build();
   }
@@ -79,6 +80,7 @@ public class BucketLifecycleHandler extends BucketOperationHandler {
 
   public Response putBucketLifecycleConfiguration(S3RequestContext context, String bucketName, InputStream body)
       throws IOException, OS3Exception {
+    verifyBucketOwner(context, bucketName);
     S3LifecycleConfiguration s3LifecycleConfiguration;
     OzoneBucket ozoneBucket = context.getBucket(bucketName);
     OmLifecycleConfiguration lcc;
@@ -112,6 +114,7 @@ public class BucketLifecycleHandler extends BucketOperationHandler {
 
   public Response getBucketLifecycleConfiguration(S3RequestContext context, String bucketName)
       throws IOException, OS3Exception {
+    verifyBucketOwner(context, bucketName);
     OzoneLifecycleConfiguration ozoneLifecycleConfiguration =
         getLifecycleConfiguration(context, bucketName);
     return Response.ok(S3LifecycleConfiguration.fromOzoneLifecycleConfiguration(
