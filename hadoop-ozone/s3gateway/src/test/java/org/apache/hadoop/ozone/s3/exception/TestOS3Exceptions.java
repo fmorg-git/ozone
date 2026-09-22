@@ -82,6 +82,32 @@ public class TestOS3Exceptions {
     assertEquals(HTTP_BAD_REQUEST, fromTable.getHttpCode());
   }
 
+  /**
+   * AWS reports the offending parameter as ArgumentName/ArgumentValue, and omits Resource when it
+   * cannot name a single resource.
+   */
+  @Test
+  public void testOS3ExceptionWithArgumentNameAndValue() {
+    final OS3Exception ex = S3ErrorTable.newError(S3ErrorTable.INVALID_ARGUMENT, "acl");
+    ex.setRequestId(OzoneUtils.getRequestID());
+    ex.setArgumentName("ResourceType");
+    ex.setArgumentValue("acl");
+    ex.setResource(null);
+
+    final String val = ex.toXml();
+    final String formatString = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>%n" +
+        "<Error>%n" +
+        "  <Code>%s</Code>%n" +
+        "  <Message>%s</Message>%n" +
+        "  <ArgumentName>%s</ArgumentName>%n" +
+        "  <ArgumentValue>%s</ArgumentValue>%n" +
+        "  <RequestId>%s</RequestId>%n" +
+        "</Error>%n";
+    final String expected = String.format(formatString, ex.getCode(), ex.getErrorMessage(),
+        ex.getArgumentName(), ex.getArgumentValue(), ex.getRequestId());
+    assertEquals(expected, val);
+  }
+
   @Test
   public void testOS3ExceptionWithToken0() {
     final OS3Exception ex = S3ErrorTable.newError(S3ErrorTable.EXPIRED_TOKEN, "resource");

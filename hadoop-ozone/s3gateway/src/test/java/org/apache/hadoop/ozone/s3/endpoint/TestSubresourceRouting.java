@@ -25,6 +25,7 @@ import static org.apache.hadoop.ozone.s3.endpoint.EndpointTestUtils.get;
 import static org.apache.hadoop.ozone.s3.endpoint.EndpointTestUtils.initiateMultipartUpload;
 import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.BUCKET_OWNER_MISMATCH;
 import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.INVALID_ARGUMENT;
+import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.METHOD_NOT_ALLOWED;
 import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.NOT_IMPLEMENTED;
 import static org.apache.hadoop.ozone.s3.util.S3Consts.EXPECTED_BUCKET_OWNER_HEADER;
 import static org.apache.hadoop.ozone.s3.util.S3Consts.QueryParams;
@@ -215,6 +216,8 @@ public class TestSubresourceRouting {
         assertErrorResponse(INVALID_ARGUMENT, () -> objectEndpoint.put(BUCKET_NAME, KEY_NAME, null));
 
     assertEquals("Conflicting query string parameters: tagging, uploadId", exception.getErrorMessage());
+    assertEquals("ResourceType", exception.getArgumentName());
+    assertEquals(QueryParams.TAGGING, exception.getArgumentValue());
   }
 
   @Test
@@ -255,10 +258,59 @@ public class TestSubresourceRouting {
     assertSucceeds(() -> get(objectEndpoint, BUCKET_NAME, KEY_NAME));
   }
 
+  @Test
+  public void objectPostSubresourceReturnsNotImplementedBeforeParsingBody() {
+    objectEndpoint.queryParamsForTest().set("restore", "");
 
+    final OS3Exception exception = assertErrorResponse(NOT_IMPLEMENTED,
+        () -> objectEndpoint.completeMultipartUpload(BUCKET_NAME, KEY_NAME, null));
+    assertEquals("restore", exception.getResource());
+  }
 
+  @Test
+  public void objectPreUnmarshalPostRouteReturnsSelectorError() {
+    objectEndpoint.queryParamsForTest().set("restore", "");
 
+    final OS3Exception exception = assertErrorResponse(NOT_IMPLEMENTED,
+        () -> objectEndpoint.rejectInvalidPostSubresource(BUCKET_NAME));
 
+    assertEquals("restore", exception.getResource());
+  }
+
+  @Test
+  public void objectPostWithoutSelectorIsRejectedInsteadOfStartingMultipartUpload() {
+    assertErrorResponse(METHOD_NOT_ALLOWED,
+        () -> objectEndpoint.rejectInvalidPostSubresource(BUCKET_NAME));
+  }
+
+  @Test
+  public void objectPostWithoutSelectorThroughFilterReturnsMethodNotAllowed() throws IOException {
+    final PostSubresourceSelectorFilter filter = new PostSubresourceSelectorFilter();
+    final ContainerRequestContext requestContext = mock(ContainerRequestContext.class);
+    final UriInfo uriInfo = mock(UriInfo.class);
+    final MultivaluedMap<String, String> queryParameters = new MultivaluedHashMap<>();
+    final MultivaluedMap<String, String> headers = new MultivaluedHashMap<>();
+    when(requestContext.getMethod()).thenReturn(HttpMethod.POST);
+    when(requestContext.getUriInfo()).thenReturn(uriInfo);
+    when(requestContext.getHeaders()).thenReturn(headers);
+    when(uriInfo.getPath(false)).thenReturn(BUCKET_NAME + "/" + KEY_NAME);
+    when(uriInfo.getQueryParameters()).thenReturn(queryParameters);
+
+    filter.filter(requestContext);
+    assertEquals(PostSubresourceSelectorFilter.INVALID_POST_SUBRESOURCE_MARKER,
+        headers.getFirst(HttpHeaders.CONTENT_TYPE));
+
+    assertErrorResponse(METHOD_NOT_ALLOWED,
+        () -> objectEndpoint.rejectInvalidPostSubresource(BUCKET_NAME));
+  }
+
+  @Test
+  public void bucketPostWithoutSelectorIsRejected() {
+    final OS3Exception exception = assertErrorResponse(INVALID_ARGUMENT,
+        () -> bucketEndpoint.rejectInvalidPostSubresource(BUCKET_NAME));
+
+    assertEquals(QueryParams.DELETE, exception.getResource());
+  }
 
   @Test
   public void objectPutTorrentReturnsNotImplemented() {
@@ -269,8 +321,38 @@ public class TestSubresourceRouting {
         () -> objectEndpoint.put(BUCKET_NAME, KEY_NAME, null));
   }
 
+  @Test
+  public void objectHeadSubresourceReturnsNotImplemented() {
+    final S3GatewayMetrics metrics = objectEndpoint.getMetrics();
+    final long failuresBefore = metrics.getHeadKeyFailure();
+    objectEndpoint.queryParamsForTest().set(QueryParams.ACL, "");
 
+    final OS3Exception exception = assertErrorResponse(NOT_IMPLEMENTED,
+        () -> objectEndpoint.head(BUCKET_NAME, KEY_NAME));
 
+    assertEquals(QueryParams.ACL, exception.getResource());
+    assertEquals(1L, metrics.getHeadKeyFailure() - failuresBefore);
+  }
+
+  @Test
+  public void bucketHeadSubresourceReturnsNotImplemented() {
+    final S3GatewayMetrics metrics = bucketEndpoint.getMetrics();
+    final long failuresBefore = metrics.getHeadBucketFailure();
+    bucketEndpoint.queryParamsForTest().set(QueryParams.TAGGING, "");
+
+    final OS3Exception exception =
+        assertErrorResponse(NOT_IMPLEMENTED, () -> bucketEndpoint.head(BUCKET_NAME));
+
+    assertEquals(QueryParams.TAGGING, exception.getResource());
+    assertEquals(1L, metrics.getHeadBucketFailure() - failuresBefore);
+  }
+
+  @Test
+  public void objectHeadVersionIdReturnsNotImplemented() {
+    objectEndpoint.queryParamsForTest().set(QueryParams.VERSION_ID, "version");
+
+    assertErrorResponse(NOT_IMPLEMENTED, () -> objectEndpoint.head(BUCKET_NAME, KEY_NAME));
+  }
 
   @Test
   public void objectGetVersionIdReturnsNotImplemented() {
@@ -375,7 +457,24 @@ public class TestSubresourceRouting {
     assertErrorResponse(S3ErrorTable.NO_SUCH_BUCKET, () -> bucketEndpoint.head(newBucket));
   }
 
+  @Test
+  public void bucketPostSubresourceReturnsNotImplementedBeforeParsingBody() {
+    bucketEndpoint.queryParamsForTest().set("metadataConfiguration", "");
 
+    final OS3Exception exception =
+        assertErrorResponse(NOT_IMPLEMENTED, () -> bucketEndpoint.multiDelete(BUCKET_NAME, null, null));
+    assertEquals("metadataConfiguration", exception.getResource());
+  }
+
+  @Test
+  public void bucketPreUnmarshalPostRouteReturnsSelectorError() {
+    bucketEndpoint.queryParamsForTest().set("metadataConfiguration", "");
+
+    final OS3Exception exception = assertErrorResponse(NOT_IMPLEMENTED,
+        () -> bucketEndpoint.rejectInvalidPostSubresource(BUCKET_NAME));
+
+    assertEquals("metadataConfiguration", exception.getResource());
+  }
 
   @Test
   public void bucketGetListMultipartUploadsWithModifiersStillSucceeds() throws Exception {

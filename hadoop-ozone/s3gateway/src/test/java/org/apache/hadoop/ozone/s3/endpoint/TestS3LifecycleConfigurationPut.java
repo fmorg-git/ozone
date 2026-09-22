@@ -22,7 +22,7 @@ import static java.net.HttpURLConnection.HTTP_FORBIDDEN;
 import static java.net.HttpURLConnection.HTTP_INTERNAL_ERROR;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static java.net.HttpURLConnection.HTTP_OK;
-import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.ACCESS_DENIED;
+import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.BUCKET_OWNER_MISMATCH;
 import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.INTERNAL_ERROR;
 import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.INVALID_ARGUMENT;
 import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.INVALID_REQUEST;
@@ -225,7 +225,7 @@ public class TestS3LifecycleConfigurationPut {
       fail();
     } catch (OS3Exception ex) {
       assertEquals(HTTP_FORBIDDEN, ex.getHttpCode());
-      assertEquals(ACCESS_DENIED.getCode(), ex.getCode());
+      assertEquals(BUCKET_OWNER_MISMATCH.getCode(), ex.getCode());
     }
   }
 

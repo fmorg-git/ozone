@@ -22,6 +22,7 @@ import static org.apache.hadoop.ozone.s3.S3GatewayConfigKeys.OZONE_S3G_FSO_DIREC
 import static org.apache.hadoop.ozone.s3.S3GatewayConfigKeys.OZONE_S3G_FSO_DIRECTORY_CREATION_ENABLED_DEFAULT;
 import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.INVALID_ARGUMENT;
 import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.INVALID_REQUEST;
+import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.METHOD_NOT_ALLOWED;
 import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.MALFORMED_XML;
 import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.NO_SUCH_UPLOAD;
 import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.PRECOND_FAILED;
@@ -144,6 +145,12 @@ public class ObjectEndpoint extends ObjectOperationHandler {
 
   private static final Set<String> OBJECT_DELETE_PARAMS = ImmutableSet.of();
 
+  private static final Set<String> OBJECT_INIT_MULTIPART_POST_SELECTORS =
+      ImmutableSet.of(QueryParams.UPLOADS);
+
+  private static final Set<String> OBJECT_COMPLETE_MULTIPART_POST_SELECTORS =
+      ImmutableSet.of(QueryParams.UPLOAD_ID);
+
   private static final Logger LOG =
       LoggerFactory.getLogger(ObjectEndpoint.class);
 
@@ -244,8 +251,9 @@ public class ObjectEndpoint extends ObjectOperationHandler {
       } else if (copyHeader != null) {
         context.setAction(S3GAction.COPY_OBJECT);
       }
+      final OzoneBucket bucket = resolvePutDestinationBucket(context, copyHeader);
+      // Already resolved by context.getBucket() above, so this does not re-authorize.
       final OzoneVolume volume = context.getVolume();
-      final OzoneBucket bucket = context.getBucket();
       final String lengthHeader = getHeaders().getHeaderString(HttpHeaders.CONTENT_LENGTH);
       long length = lengthHeader != null ? Long.parseLong(lengthHeader) : 0;
 
@@ -418,6 +426,7 @@ public class ObjectEndpoint extends ObjectOperationHandler {
 
     try {
       context.setAction(S3GAction.GET_KEY);
+      verifyBucketOwner(context);
       final int partNumber = queryParams().getInt(QueryParams.PART_NUMBER, 0);
       // A negative part number is not a valid part; reject it as InvalidArgument.
       if (partNumber < 0) {
@@ -764,6 +773,7 @@ public class ObjectEndpoint extends ObjectOperationHandler {
     S3ConditionalRequest.DeleteCondition deleteCondition = null;
 
     try {
+      verifyBucketOwner(context);
       OzoneVolume volume = context.getVolume();
       deleteCondition = S3ConditionalRequest.parseDeleteCondition(getHeaders(), keyPath);
 
@@ -801,6 +811,33 @@ public class ObjectEndpoint extends ObjectOperationHandler {
     }
   }
 
+  /** Returns a pre-unmarshal POST routing error after owner verification and audit logging. */
+  @POST
+  @Consumes(PostSubresourceSelectorFilter.INVALID_POST_SUBRESOURCE_MARKER)
+  public Response rejectInvalidPostSubresource(@PathParam(BUCKET) String bucket)
+      throws IOException, OS3Exception {
+    if (SubresourceRouteTable.isBareObjectPost(queryParams().keySet())) {
+      final ObjectRequestContext context = new ObjectRequestContext(S3GAction.UNSUPPORTED_SUBRESOURCE, bucket);
+      try {
+        verifyBucketOwner(context, bucket);
+      } catch (Exception ownerEx) {
+        auditWriteFailure(context.getAction(), ownerEx);
+        throw ownerEx;
+      }
+      final OS3Exception methodNotAllowed = newError(METHOD_NOT_ALLOWED);
+      auditWriteFailure(context.getAction(), methodNotAllowed);
+      throw methodNotAllowed;
+    }
+    final boolean initializeMultipartUpload = queryParams().containsKey(QueryParams.UPLOADS);
+    final S3GAction action = initializeMultipartUpload
+        ? S3GAction.INIT_MULTIPART_UPLOAD : S3GAction.COMPLETE_MULTIPART_UPLOAD;
+    final Set<String> allowedSelectors = initializeMultipartUpload
+        ? OBJECT_INIT_MULTIPART_POST_SELECTORS : OBJECT_COMPLETE_MULTIPART_POST_SELECTORS;
+    final ObjectRequestContext context = new ObjectRequestContext(action, bucket);
+    validateRequiredPostSubresourceSelectors(context, bucket, allowedSelectors);
+    throw newError(INVALID_REQUEST, "POST subresource");
+  }
+
   /**
    * Initialize MultiPartUpload request.
    * <p>
@@ -814,6 +851,7 @@ public class ObjectEndpoint extends ObjectOperationHandler {
       @PathParam(PATH) String key
   ) throws IOException, OS3Exception {
     final ObjectRequestContext context = new ObjectRequestContext(S3GAction.INIT_MULTIPART_UPLOAD, bucket);
+    validatePostSubresourceSelectors(context, bucket, OBJECT_INIT_MULTIPART_POST_SELECTORS);
     final long startNanos = context.getStartNanos();
 
     try {
@@ -865,6 +903,7 @@ public class ObjectEndpoint extends ObjectOperationHandler {
       CompleteMultipartUploadRequest multipartUploadRequest
   ) throws IOException, OS3Exception {
     final ObjectRequestContext context = new ObjectRequestContext(S3GAction.COMPLETE_MULTIPART_UPLOAD, bucket);
+    validatePostSubresourceSelectors(context, bucket, OBJECT_COMPLETE_MULTIPART_POST_SELECTORS);
     final String uploadID = queryParams().get(QueryParams.UPLOAD_ID, "");
     final long startNanos = context.getStartNanos();
     final List<CompleteMultipartUploadRequest.Part> partList =

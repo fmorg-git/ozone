@@ -125,6 +125,9 @@ final class SubresourceRouteTable<H> {
     final OS3Exception exception = newError(INVALID_ARGUMENT, firstSelector);
     exception.setErrorMessage("Conflicting query string parameters: "
         + String.join(", ", parameters));
+    exception.setArgumentName(CONFLICTING_PARAMETERS_ARGUMENT);
+    exception.setArgumentValue(firstSelector);
+    exception.setResource(null);
     return exception;
   }
 
@@ -134,8 +137,7 @@ final class SubresourceRouteTable<H> {
    */
   static boolean isConflictingQueryParameters(OS3Exception exception) {
     return INVALID_ARGUMENT.getCode().equals(exception.getCode())
-        && exception.getErrorMessage() != null
-        && exception.getErrorMessage().startsWith("Conflicting query string parameters:");
+        && CONFLICTING_PARAMETERS_ARGUMENT.equals(exception.getArgumentName());
   }
 
   private static Set<String> subresourceSelectors(Set<String> queryKeys) {

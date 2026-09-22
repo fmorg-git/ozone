@@ -17,6 +17,7 @@
 
 package org.apache.hadoop.ozone.s3.exception;
 
+import static java.net.HttpURLConnection.HTTP_BAD_METHOD;
 import static java.net.HttpURLConnection.HTTP_BAD_REQUEST;
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.net.HttpURLConnection.HTTP_FORBIDDEN;
@@ -130,6 +131,11 @@ public enum S3ErrorTable {
   NOT_IMPLEMENTED(
       "NotImplemented", "This part of feature is not implemented yet.",
       HTTP_NOT_IMPLEMENTED),
+
+  METHOD_NOT_ALLOWED(
+      "MethodNotAllowed",
+      "The specified method is not allowed against this resource.",
+      HTTP_BAD_METHOD),
 
   NO_OVERWRITE(
       "Conflict", "Cannot overwrite file with directory", HTTP_CONFLICT),

@@ -243,6 +243,8 @@ public class TestSubresourceRouteTable {
         ImmutableSet.of(QueryParams.DELETE, "website"), ImmutableSet.of(QueryParams.DELETE)));
     assertEquals(INVALID_ARGUMENT.getCode(), ex.getCode());
     assertEquals("Conflicting query string parameters: delete, website", ex.getErrorMessage());
+    assertEquals("ResourceType", ex.getArgumentName());
+    assertEquals("delete", ex.getArgumentValue());
   }
 
   @Test
@@ -284,6 +286,7 @@ public class TestSubresourceRouteTable {
 
     assertEquals(INVALID_ARGUMENT.getCode(), exception.getCode());
     assertEquals("Conflicting query string parameters: tagging, versionId", exception.getErrorMessage());
+    assertEquals(QueryParams.TAGGING, exception.getArgumentValue());
   }
 
   @Test
@@ -298,6 +301,7 @@ public class TestSubresourceRouteTable {
         () -> routes.resolve(HttpMethod.GET, ImmutableSet.of(ACL, TAGGING)));
     assertEquals(INVALID_ARGUMENT.getCode(), ex.getCode());
     assertEquals("Conflicting query string parameters: acl, tagging", ex.getErrorMessage());
+    assertEquals(ACL, ex.getArgumentValue());
   }
 
   @Test
@@ -311,5 +315,6 @@ public class TestSubresourceRouteTable {
         () -> routes.resolve(HttpMethod.GET, ImmutableSet.of(ACL, "website")));
     assertEquals(INVALID_ARGUMENT.getCode(), ex.getCode());
     assertEquals("Conflicting query string parameters: acl, website", ex.getErrorMessage());
+    assertEquals(ACL, ex.getArgumentValue());
   }
 }

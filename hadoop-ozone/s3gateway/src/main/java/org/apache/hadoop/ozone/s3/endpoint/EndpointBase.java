@@ -41,6 +41,7 @@ import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.INVALID_URI;
 import static org.apache.hadoop.ozone.s3.exception.S3ErrorTable.newError;
 import static org.apache.hadoop.ozone.s3.util.S3Consts.AWS_TAG_PREFIX;
 import static org.apache.hadoop.ozone.s3.util.S3Consts.CUSTOM_METADATA_HEADER_PREFIX;
+import static org.apache.hadoop.ozone.s3.util.S3Consts.EXPECTED_BUCKET_OWNER_HEADER;
 import static org.apache.hadoop.ozone.s3.util.S3Consts.RESERVED_USER_METADATA_KEY_PREFIX;
 import static org.apache.hadoop.ozone.s3.util.S3Consts.STORAGE_CLASS_HEADER;
 import static org.apache.hadoop.ozone.s3.util.S3Consts.STORAGE_CONFIG_HEADER;
@@ -91,6 +92,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.hdds.client.ReplicationConfig;
 import org.apache.hadoop.hdds.conf.OzoneConfiguration;
 import org.apache.hadoop.hdds.conf.StorageUnit;
+import org.apache.hadoop.hdds.scm.client.HddsClientUtils;
 import org.apache.hadoop.ozone.OzoneConsts;
 import org.apache.hadoop.ozone.OzoneSecurityUtil;
 import org.apache.hadoop.ozone.audit.AuditAction;
@@ -303,6 +305,42 @@ public abstract class EndpointBase {
     return Scope.BUCKET;
   }
 
+  /** Reject known S3 POST subresources that do not belong to the selected operation. */
+  protected void validatePostSubresourceSelectors(S3RequestContext s3Context, String bucketName,
+      Set<String> allowedSelectors) throws OS3Exception, IOException {
+    validatePostSubresourceSelectors(s3Context, bucketName, allowedSelectors, false);
+  }
+
+  /** Reject a POST whose selector is missing or does not belong to the selected operation. */
+  protected void validateRequiredPostSubresourceSelectors(S3RequestContext s3Context, String bucketName,
+      Set<String> allowedSelectors) throws OS3Exception, IOException {
+    validatePostSubresourceSelectors(s3Context, bucketName, allowedSelectors, true);
+  }
+
+  private void validatePostSubresourceSelectors(S3RequestContext s3Context, String bucketName,
+      Set<String> allowedSelectors, boolean selectorRequired) throws OS3Exception, IOException {
+    try {
+      if (selectorRequired) {
+        SubresourceRouteTable.validateSubresourceSelectors(queryParams().keySet(), allowedSelectors);
+      } else {
+        SubresourceRouteTable.validateOptionalSubresourceSelectors(queryParams().keySet(), allowedSelectors);
+      }
+    } catch (OS3Exception selectorEx) {
+      final String selector = selectorEx.getResource() != null
+          ? selectorEx.getResource() : selectorEx.getArgumentValue();
+      SubresourceS3GAction.apply(s3Context, HttpMethod.POST, selector, subresourceScope());
+      getMetrics().updateSubresourceRoutingFailureStats(s3Context.getStartNanos());
+      try {
+        verifyBucketOwner(s3Context, bucketName);
+      } catch (Exception ownerEx) {
+        auditWriteFailure(s3Context.getAction(), ownerEx);
+        throw ownerEx;
+      }
+      auditWriteFailure(s3Context.getAction(), selectorEx);
+      throw selectorEx;
+    }
+  }
+
   /** Reject unsupported S3 subresources before executing a HEAD operation. */
   protected void validateHeadSubresourceSelectors(S3RequestContext s3Context, String bucketName)
       throws OS3Exception, IOException {
@@ -311,9 +349,45 @@ public abstract class EndpointBase {
     } catch (OS3Exception selectorEx) {
       s3Context.setAction(S3GAction.UNSUPPORTED_SUBRESOURCE);
       getMetrics().updateSubresourceRoutingFailureStats(s3Context.getStartNanos());
+      try {
+        verifyBucketOwner(s3Context, bucketName);
+      } catch (Exception ownerEx) {
+        auditReadFailure(s3Context.getAction(), ownerEx);
+        throw ownerEx;
+      }
       auditReadFailure(s3Context.getAction(), selectorEx);
       throw selectorEx;
     }
+  }
+
+  /**
+   * Enforces the {@code x-amz-expected-bucket-owner} precondition when the header is present, and
+   * records on the context that the check ran.
+   * <p>
+   * Every terminal {@link BucketOperationHandler} and {@link ObjectOperationHandler} must call this
+   * before acting on the request (and, for writes, before consuming the body). The routers call it on
+   * their routing-failure paths and assert {@link S3RequestContext#isOwnerVerified()} after a
+   * successful dispatch.
+   */
+  protected final void verifyBucketOwner(S3RequestContext s3Context, String bucketName)
+      throws IOException, OS3Exception {
+    if (getHeaders() != null
+        && !StringUtils.isEmpty(getHeaders().getHeaderString(EXPECTED_BUCKET_OWNER_HEADER))) {
+      try {
+        final OzoneBucket bucket = s3Context.getBucket(bucketName);
+        S3Owner.verifyBucketOwnerCondition(getHeaders(), bucketName, bucket.getOwner());
+      } catch (final OMException ex) {
+        throw S3ErrorTable.newError(bucketName, ex);
+      } catch (final IOException ex) {
+        final OMException omException =
+            (OMException) HddsClientUtils.containsException(ex, OMException.class);
+        if (omException != null) {
+          throw S3ErrorTable.newError(bucketName, omException);
+        }
+        throw S3ErrorTable.newError(S3ErrorTable.INTERNAL_ERROR, bucketName, ex);
+      }
+    }
+    s3Context.markOwnerVerified();
   }
 
   /**

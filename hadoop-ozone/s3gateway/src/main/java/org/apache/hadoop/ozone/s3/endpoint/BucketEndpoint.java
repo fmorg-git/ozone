@@ -159,6 +159,7 @@ public class BucketEndpoint extends BucketOperationHandler {
       boolean shallow = listKeysShallowEnabled
           && OZONE_URI_DELIMITER.equals(delimiter);
 
+      verifyBucketOwner(context, bucketName);
       bucket = context.getBucket(bucketName);
 
       ozoneKeyIterator = bucket.listKeys(prefix, prevKey, shallow);
@@ -348,6 +349,16 @@ public class BucketEndpoint extends BucketOperationHandler {
     }
   }
 
+  /** Returns a pre-unmarshal POST routing error after owner verification and audit logging. */
+  @POST
+  @Consumes(PostSubresourceSelectorFilter.INVALID_POST_SUBRESOURCE_MARKER)
+  public Response rejectInvalidPostSubresource(@PathParam(BUCKET) String bucketName)
+      throws OS3Exception, IOException {
+    final S3RequestContext context = new S3RequestContext(this, S3GAction.MULTI_DELETE);
+    validateRequiredPostSubresourceSelectors(context, bucketName, BUCKET_MULTI_DELETE_POST_SELECTORS);
+    throw newError(S3ErrorTable.INVALID_REQUEST, "POST subresource");
+  }
+
   /**
    * Implement multi delete.
    * <p>
@@ -362,6 +373,8 @@ public class BucketEndpoint extends BucketOperationHandler {
       MultiDeleteRequest request
   ) throws OS3Exception, IOException {
     final S3RequestContext context = new S3RequestContext(this, S3GAction.MULTI_DELETE);
+    validatePostSubresourceSelectors(context, bucketName, BUCKET_MULTI_DELETE_POST_SELECTORS);
+
     if (request.getObjects() != null
         && request.getObjects().size() > S3Consts.S3_DELETE_OBJECTS_MAX_KEYS) {
       throw newError(S3ErrorTable.MALFORMED_XML, bucketName);

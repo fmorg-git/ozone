@@ -32,6 +32,7 @@ class S3RequestContext {
   private OzoneVolume volume;
   private String cachedBucketName;
   private OzoneBucket bucket;
+  private boolean ownerVerified;
 
   S3RequestContext(EndpointBase endpoint, S3GAction action) {
     this.endpoint = endpoint;
@@ -73,4 +74,11 @@ class S3RequestContext {
     endpoint.applyS3Action(action);
   }
 
+  void markOwnerVerified() {
+    ownerVerified = true;
+  }
+
+  boolean isOwnerVerified() {
+    return ownerVerified;
+  }
 }
